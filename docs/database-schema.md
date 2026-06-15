@@ -28,6 +28,13 @@ Phase 1 establishes the database foundation only. Drizzle schema in `db/schema.t
 | `created_at` | `timestamptz` | Creation timestamp. |
 | `updated_at` | `timestamptz` | Update timestamp. |
 
+Item constraints:
+
+- `title` 不可為空白字串
+- `value_type = scale` 時，`scale_min` 與 `scale_max` 必須同時存在
+- `value_type = scale` 時，`scale_min < scale_max`
+- 非 `scale` 項目不可設定 `scale_min` / `scale_max`
+
 ### records
 
 | Column | Type | Notes |

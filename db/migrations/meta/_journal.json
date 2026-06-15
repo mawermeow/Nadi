@@ -8,6 +8,13 @@
       "when": 1781512672169,
       "tag": "0000_stale_mariko_yashida",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781520234148,
+      "tag": "0001_acoustic_juggernaut",
+      "breakpoints": true
     }
   ]
 }

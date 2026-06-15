@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   index,
   integer,
   jsonb,
@@ -61,6 +63,15 @@ export const items = pgTable(
     ...timestamps,
   },
   (table) => [
+    check('items_title_not_blank_check', sql`char_length(trim(${table.title})) > 0`),
+    check(
+      'items_scale_config_check',
+      sql`(
+        (${table.valueType} = 'scale' and ${table.scaleMin} is not null and ${table.scaleMax} is not null and ${table.scaleMin} < ${table.scaleMax})
+        or
+        (${table.valueType} <> 'scale' and ${table.scaleMin} is null and ${table.scaleMax} is null)
+      )`,
+    ),
     index('items_user_id_idx').on(table.userId),
     index('items_user_type_idx').on(table.userId, table.type),
     index('items_user_archived_idx').on(table.userId, table.archived),
