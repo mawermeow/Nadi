@@ -1,4 +1,7 @@
-# 複製為本機設定後再執行 `direnv allow`：
-#   cp .envrc.example .envrc
+# .env.example 只用於說明需要哪些 environment variables，
+# 不應存放任何真實 credentials，也不作為本機實際載入來源。
+
+# 本專案只透過 .envrc 載入本機敏感參數。
+# .envrc 會負責載入真正的 secrets：
 
 source_env_if_exists ~/Secrets/Nadi/dev.env

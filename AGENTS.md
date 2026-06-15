@@ -547,12 +547,15 @@ Rules:
 - NADI_DEBUG=true 只能用於本機或受保護環境。
 - 若未啟用 NADI_ENABLE_AI_INSIGHTS，不應呼叫任何 LLM API。
 - 不要建立 .env 以外的 secrets 檔案。
-- .env.example 可以存在，但只能放空值或安全 placeholder。
+- `.env.example` 可以存在，但只能放空值或安全 placeholder，用途僅限說明需要哪些參數，不作為本機實際載入來源。
 
 ## Secret Management
 
 - 使用 direnv 管理本機 secrets。
+- 本專案只透過 `.envrc` 管理與載入本機敏感參數。
 - Secrets 不應存放於 repository 中。
+- `.env.example` 只用於說明需要哪些 environment variables，不應存放真實值，也不作為本機實際載入來源。
+- 實際參數應由 `.envrc` 透過 `source_env_if_exists` 載入 repository 外部的 secrets 檔案。
 - 建議使用：
 
 ```envrc
