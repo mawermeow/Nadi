@@ -212,6 +212,44 @@ type ReportSnapshot = {
 };
 ```
 
+## Drizzle Migration Rules
+
+- Drizzle schema 是資料庫結構的唯一來源。
+- 資料庫 schema 變更必須先修改 Drizzle schema 檔案，不要直接手動修改 PostgreSQL tables。
+- 預期 schema 位置：
+
+```txt
+db/schema.ts
+```
+
+- 預期 migration 輸出位置：
+
+```txt
+db/migrations/
+```
+
+- 當需要修改 table、column、index、enum 或 constraint 時：
+    1. 先更新 `db/schema.ts`。
+    2. 產生 migration。
+    3. 套用前檢查產生出的 SQL migration。
+    4. 將 migration 套用到目標資料庫。
+    5. 若 schema 變更具有文件意義，同步更新 `docs/database-schema.md`。
+
+- 除非使用者明確要求，否則不要透過 Neon console 手動修改 production database schema。
+- 不要在沒有使用者明確確認的情況下執行破壞性 migration。
+- 破壞性 migration 包含 drop table、drop column、truncate table、可能造成資料遺失的 column type 變更，或重置 migrations。
+- MVP 開發階段優先使用 additive migration：
+    - 新增 table。
+    - 新增 column。
+    - 新增 index。
+    - 先新增 nullable field，完成 backfill 後，必要時再改成 required。
+- 如果 schema 變更可能造成資料遺失，應停止操作並先說明風險。
+- 除非使用者明確確認目標資料庫，否則不要對 production 使用 `drizzle-kit push`。
+- shared、staging 或 production database 優先使用 generated migration，不要直接 push schema。
+- `drizzle-kit push` 只適合 local development 或 disposable preview database。
+- Migration files 應提交到 git。
+- Database credentials 必須放在 environment variables，不可提交到 git。
+
 ## Index Rules
 
 Recommended indexes:
@@ -527,55 +565,58 @@ source_env_if_exists ~/Secrets/Nadi/dev.env
 
 ## Local Commands
 
-These commands may be adjusted after package scripts are implemented.
+這些指令可在 package scripts 實作後調整。
 
 ```txt
-Install:
+安裝：
   pnpm install
 
-Start dev app:
+啟動開發環境：
   pnpm dev
 
-Build app:
+建置：
   pnpm build
 
-Run production app:
+啟動 production app：
   pnpm start
 
-Lint:
+執行 lint：
   pnpm lint
 
-Typecheck:
+執行 typecheck：
   pnpm typecheck
 
-Test:
+執行測試：
   pnpm test
 
-Run unit tests:
+執行 unit tests：
   pnpm test:unit
 
-Run integration tests:
+執行 integration tests：
   pnpm test:integration
 
-Run e2e tests:
+執行 e2e tests：
   pnpm test:e2e
 
-Database migrate:
-  pnpm db:migrate
-
-Database generate:
+產生 database migration：
   pnpm db:generate
 
-Database studio:
+套用 database migration：
+  pnpm db:migrate
+
+直接 push database schema：
+  pnpm db:push
+
+開啟 database studio：
   pnpm db:studio
 
-Database seed:
+執行 database seed：
   pnpm db:seed
 
-Run report tests:
+執行 report tests：
   pnpm test:reports
 
-Run API tests:
+執行 API tests：
   pnpm test:api
 ```
 
@@ -611,6 +652,8 @@ Run API tests:
 
 - 優先保持系統簡單，不要過早導入 queue、microservice、Redis 或 event sourcing。
 - 第一版以 Next.js + Neon Postgres + Drizzle ORM 為主。
+- Drizzle schema 應作為 database schema 的唯一來源。
+- Schema 變更應透過 migration 管理，不要直接在 Neon console 手動改表。
 - Business logic 應與 UI 分離。
 - Report calculation 應獨立成純函式，方便測試。
 - DB query 應集中在 repository layer，避免散落在 components。
