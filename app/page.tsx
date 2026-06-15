@@ -1,6 +1,7 @@
 import { toItemResponse } from '@/features/items/api';
-import { ItemDashboard } from '@/features/items/components/item-dashboard';
 import { listItemsForUser } from '@/features/items/service';
+import { RecordDashboard } from '@/features/records/components/record-dashboard';
+import { listRecordsForUser } from '@/features/records/service';
 import { requireUser } from '@/lib/auth/require-user';
 
 export const dynamic = 'force-dynamic';
@@ -10,10 +11,12 @@ export default async function HomePage() {
   const items = await listItemsForUser(user, {
     includeArchived: true,
   });
+  const records = await listRecordsForUser(user);
 
   return (
-    <ItemDashboard
+    <RecordDashboard
       initialItems={items.map(toItemResponse)}
+      initialRecords={records}
       userEmail={user.email}
     />
   );

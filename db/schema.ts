@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -88,7 +89,7 @@ export const records = pgTable(
     itemId: uuid('item_id')
       .notNull()
       .references(() => items.id),
-    valueNumber: integer('value_number'),
+    valueNumber: doublePrecision('value_number'),
     valueText: text('value_text'),
     valueBoolean: boolean('value_boolean'),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
@@ -96,6 +97,18 @@ export const records = pgTable(
     ...timestamps,
   },
   (table) => [
+    check(
+      'records_single_value_check',
+      sql`(
+        (case when ${table.valueNumber} is not null then 1 else 0 end) +
+        (case when ${table.valueText} is not null then 1 else 0 end) +
+        (case when ${table.valueBoolean} is not null then 1 else 0 end)
+      ) = 1`,
+    ),
+    check(
+      'records_note_length_check',
+      sql`${table.note} is null or char_length(${table.note}) <= 500`,
+    ),
     index('records_user_recorded_at_idx').on(table.userId, table.recordedAt),
     index('records_user_item_recorded_at_idx').on(
       table.userId,

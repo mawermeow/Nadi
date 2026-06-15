@@ -42,13 +42,18 @@ Item constraints:
 | `id` | `uuid` | Primary key. |
 | `user_id` | `uuid` | Owner, references `users.id`. |
 | `item_id` | `uuid` | References `items.id`. |
-| `value_number` | `integer` | Numeric value slot. |
+| `value_number` | `double precision` | Numeric or scale value slot. |
 | `value_text` | `text` | Text value slot. |
 | `value_boolean` | `boolean` | Boolean value slot. |
 | `recorded_at` | `timestamptz` | UTC event timestamp. |
 | `note` | `text` | Optional note. |
 | `created_at` | `timestamptz` | Creation timestamp. |
 | `updated_at` | `timestamptz` | Update timestamp. |
+
+Record constraints:
+
+- `value_number`、`value_text`、`value_boolean` 三者中必須且只能有一個有值
+- `note` 最多 500 字
 
 ### report_snapshots
 
