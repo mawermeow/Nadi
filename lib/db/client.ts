@@ -1,12 +1,7 @@
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
-
-import * as schema from '@/db/schema';
+import { ensureLocalEnvLoaded } from '@/lib/env/load-env';
+import { createDb } from '@/lib/db/connection';
 import { getServerEnv } from '@/lib/validation/env';
 
+ensureLocalEnvLoaded();
 const env = getServerEnv();
-const sql = neon(env.DATABASE_URL);
-
-export const db = drizzle(sql, {
-  schema,
-});
+export const db = createDb(env.DATABASE_URL);

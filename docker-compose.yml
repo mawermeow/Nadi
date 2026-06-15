@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nadi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nadi
+      POSTGRES_USER: nadi
+      POSTGRES_PASSWORD: nadi_local_dev
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - nadi_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nadi -d nadi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  nadi_postgres_data:
