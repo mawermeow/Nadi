@@ -4,6 +4,7 @@
   "description": "A personal life-signal tracking system.",
   "packageManager": "pnpm@11.5.2",
   "scripts": {
+    "env": "direnv allow",
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
