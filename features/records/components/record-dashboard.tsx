@@ -221,6 +221,19 @@ function formatSyncTimestamp(value: string | null) {
   }).format(new Date(value));
 }
 
+function scrollToTopAfterTabChange() {
+  const behavior: ScrollBehavior = window.matchMedia('(max-width: 1023px)').matches
+    ? 'smooth'
+    : 'auto';
+
+  window.scrollTo({ top: 0, behavior });
+
+  const contentContainer = document.getElementById('record-dashboard-scroll-container');
+  if (contentContainer) {
+    contentContainer.scrollTo({ top: 0, behavior });
+  }
+}
+
 export function RecordDashboard({
   initialItems,
   initialRecords,
@@ -369,7 +382,12 @@ export function RecordDashboard({
       return;
     }
 
+    if (nextTab === activeTab) {
+      return;
+    }
+
     setActiveTab(nextTab);
+    requestAnimationFrame(scrollToTopAfterTabChange);
   }
 
   function updateItemFormValue<Key extends keyof ItemFormState>(

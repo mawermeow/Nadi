@@ -36,7 +36,10 @@ export function AppShell({
           tabs={tabs}
         />
 
-        <div className="grid min-h-0 min-w-0 flex-1 gap-6 overflow-x-clip pb-7 sm:gap-7 sm:pb-20 lg:h-full lg:gap-8 lg:overflow-y-auto lg:pb-0">
+        <div
+          id="record-dashboard-scroll-container"
+          className="grid min-h-0 min-w-0 flex-1 gap-6 overflow-x-clip pb-7 sm:gap-7 sm:pb-20 lg:h-full lg:gap-8 lg:overflow-y-auto lg:pb-0"
+        >
           {children}
         </div>
       </div>
