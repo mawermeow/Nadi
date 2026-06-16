@@ -4,10 +4,14 @@ import { useMemo, useState, useTransition } from 'react';
 
 import type { ItemResponse } from '@/features/items/api';
 import type { RecordResponse } from '@/features/records/api';
+import type { SummaryReportResponse } from '@/features/reports/api';
+import { SummaryReportSection } from '@/features/reports/components/summary-report-section';
 
 type RecordDashboardProps = {
   initialItems: ItemResponse[];
   initialRecords: RecordResponse[];
+  initialSummaryReport: SummaryReportResponse;
+  maxReportRangeDays: number;
   userEmail: string;
 };
 
@@ -90,6 +94,8 @@ function formatRecordValue(record: RecordResponse) {
 export function RecordDashboard({
   initialItems,
   initialRecords,
+  initialSummaryReport,
+  maxReportRangeDays,
   userEmail,
 }: RecordDashboardProps) {
   const [items, setItems] = useState(initialItems);
@@ -357,6 +363,11 @@ export function RecordDashboard({
             </div>
           </div>
         </section>
+
+        <SummaryReportSection
+          initialReport={initialSummaryReport}
+          maxRangeDays={maxReportRangeDays}
+        />
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <form

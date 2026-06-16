@@ -19,7 +19,7 @@ Phase 2 implements the Item API and keeps the same base conventions for later ph
 - `POST /v1/records`
 - `DELETE /v1/records/:recordId`
 
-Reports are intentionally excluded from the current Phase 3 implementation.
+Correlation reports and AI insights are intentionally excluded from the current Phase 4 implementation.
 
 ## Item API
 
@@ -129,3 +129,50 @@ Rules:
 - `note`
 
 更新時仍會依據目標 item 的 `valueType` 驗證 `value`。
+
+## Summary Report API
+
+### `GET /v1/reports/summary`
+
+Query params:
+
+- `from`
+- `to`
+
+Rules:
+
+- `from` / `to` 必填
+- 需為 ISO 8601 格式
+- 查詢範圍不可超過 `NADI_REPORT_MAX_RANGE_DAYS`
+- 只統計目前登入使用者自己的 records
+
+Response:
+
+```json
+{
+  "from": "2026-06-01T00:00:00.000Z",
+  "to": "2026-06-15T23:59:59.999Z",
+  "metrics": [
+    {
+      "itemId": "uuid",
+      "title": "睡眠",
+      "unit": "小時",
+      "valueType": "number",
+      "count": 10,
+      "total": 68,
+      "avg": 6.8,
+      "min": 5.5,
+      "max": 8
+    }
+  ],
+  "symptoms": [
+    {
+      "itemId": "uuid",
+      "title": "頭痛程度",
+      "valueType": "scale",
+      "occurrenceCount": 4,
+      "avgSeverity": 5.5
+    }
+  ]
+}
+```
