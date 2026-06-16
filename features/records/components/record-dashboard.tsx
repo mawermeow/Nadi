@@ -375,14 +375,14 @@ export function RecordDashboard({
     [filterState.from, filterState.itemId, filterState.itemType, filterState.to, recordItemTypeTab],
   );
 
-  function navigateToTab(tabId: string) {
+  function navigateToTab(tabId: string, options?: { forceScroll?: boolean }) {
     const nextTab = appTabs.find((tab) => tab.id === tabId)?.id;
 
     if (!nextTab) {
       return;
     }
 
-    if (nextTab === activeTab) {
+    if (nextTab === activeTab && !options?.forceScroll) {
       return;
     }
 
@@ -458,11 +458,12 @@ export function RecordDashboard({
         ? `正在編輯「${recordItem.title}」的紀錄。`
         : '正在編輯這筆紀錄。',
     );
-    setActiveTab('create');
+    navigateToTab('create', { forceScroll: true });
   }
 
   function resetRecordForm() {
     setEditingRecordId(null);
+    setRecordNotice(null);
     setRecordFormState((currentState) => ({
       ...currentState,
       valueText: '',
