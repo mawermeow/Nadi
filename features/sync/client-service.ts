@@ -351,6 +351,83 @@ function sortOperationsForPush(operations: LocalSyncOperation[]) {
   });
 }
 
+async function filterReadyOperationsForPush(
+  operations: LocalSyncOperation[],
+) {
+  const readyOperations: LocalSyncOperation[] = [];
+  const blockedRecordIds = new Set<string>();
+  const localItemCache = new Map<string, Awaited<ReturnType<typeof itemLocalRepository.getById>>>();
+
+  for (const operation of operations) {
+    if (operation.entityType === 'record' && blockedRecordIds.has(operation.entityId)) {
+      continue;
+    }
+
+    if (operation.entityType === 'record') {
+      if (operation.operationType === 'update' || operation.operationType === 'delete') {
+        const hasUnsyncedCreateDependency = operations.some(
+          (candidate) =>
+            candidate.entityId === operation.entityId &&
+            candidate.entityType === 'record' &&
+            candidate.operationType === 'create' &&
+            candidate.status !== 'synced',
+        );
+
+        if (hasUnsyncedCreateDependency) {
+          blockedRecordIds.add(operation.entityId);
+          continue;
+        }
+      }
+
+      const referencedItemId =
+        operation.operationType === 'create'
+          ? ((operation.payload as { itemId?: string } | null)?.itemId ?? null)
+          : operation.operationType === 'update'
+            ? ((operation.payload as { itemId?: string } | null)?.itemId ?? null)
+            : null;
+
+      if (referencedItemId) {
+        if (!localItemCache.has(referencedItemId)) {
+          localItemCache.set(
+            referencedItemId,
+            await itemLocalRepository.getById(referencedItemId),
+          );
+        }
+
+        const referencedItem = localItemCache.get(referencedItemId) ?? null;
+        const hasPendingItemCreateDependency = operations.some(
+          (candidate) =>
+            candidate.entityType === 'item' &&
+            candidate.entityId === referencedItemId &&
+            candidate.operationType === 'create' &&
+            candidate.status !== 'synced',
+        );
+        const hasReadyItemCreateInBatch = readyOperations.some(
+          (candidate) =>
+            candidate.entityType === 'item' &&
+            candidate.entityId === referencedItemId &&
+            candidate.operationType === 'create',
+        );
+        const hasUnsyncedItemDependency =
+          (!referencedItem && !hasReadyItemCreateInBatch) ||
+          (!!referencedItem &&
+            referencedItem.syncStatus !== 'synced' &&
+            !hasReadyItemCreateInBatch) ||
+          (hasPendingItemCreateDependency && !hasReadyItemCreateInBatch);
+
+        if (hasUnsyncedItemDependency) {
+          blockedRecordIds.add(operation.entityId);
+          continue;
+        }
+      }
+    }
+
+    readyOperations.push(operation);
+  }
+
+  return readyOperations;
+}
+
 let runningSyncPromise: Promise<void> | null = null;
 
 export async function pushPendingOperations() {
@@ -367,16 +444,17 @@ export async function pushPendingOperations() {
 
   const deviceId = await getOrCreateDeviceId();
   const allOperations = await syncOperationRepository.getAll();
-  const operationsToPush = sortOperationsForPush(
+  const candidateOperations = sortOperationsForPush(
     allOperations.filter(
       (operation) =>
         operation.status === 'pending' || operation.status === 'failed',
     ),
   );
+  const operationsToPush = await filterReadyOperationsForPush(candidateOperations);
 
   setSyncState({
-    pendingCount: operationsToPush.filter((operation) => operation.status === 'pending').length,
-    failedCount: operationsToPush.filter((operation) => operation.status === 'failed').length,
+    pendingCount: candidateOperations.filter((operation) => operation.status === 'pending').length,
+    failedCount: candidateOperations.filter((operation) => operation.status === 'failed').length,
   });
 
   if (operationsToPush.length === 0) {

@@ -33,6 +33,7 @@ export type SyncOperationIssue = {
   title: string;
   updatedAt: string;
   lastError: string | null;
+  displayError: string;
 };
 
 export function getSyncStatusPresentation(
@@ -91,6 +92,45 @@ function getSyncOperationTitle(operation: LocalSyncOperation) {
   return `${entityLabel}${operationLabel}`;
 }
 
+function getReadableSyncError(
+  operation: LocalSyncOperation,
+  lastError: string | null,
+) {
+  if (!lastError) {
+    return '未提供詳細原因。';
+  }
+
+  if (
+    operation.entityType === 'record' &&
+    operation.operationType === 'create' &&
+    lastError.includes('PAYLOAD_INVALID: 找不到對應的項目')
+  ) {
+    return '這筆紀錄依賴的項目當時尚未同步到雲端，所以紀錄新增被暫時擋下。';
+  }
+
+  if (
+    operation.entityType === 'record' &&
+    operation.operationType === 'update' &&
+    lastError.includes('ENTITY_NOT_FOUND: 找不到這筆 record')
+  ) {
+    return '前一筆紀錄新增尚未成功進入雲端，所以後續更新暫時找不到對應紀錄。';
+  }
+
+  if (lastError.includes('ENTITY_ALREADY_EXISTS')) {
+    return '雲端已存在相同資料，系統會在下次同步時嘗試自動對齊。';
+  }
+
+  if (lastError.includes('ENTITY_DELETED')) {
+    return '這筆資料在雲端已標記刪除，需要先確認是否要保留本機版本。';
+  }
+
+  if (lastError.includes('version conflict')) {
+    return '本機版本與雲端版本不同，需先確認要保留哪一份變更。';
+  }
+
+  return lastError;
+}
+
 function mapSyncOperationIssue(
   operation: LocalSyncOperation,
 ): SyncOperationIssue | null {
@@ -108,6 +148,7 @@ function mapSyncOperationIssue(
     title: getSyncOperationTitle(operation),
     updatedAt: operation.updatedAt,
     lastError: operation.lastError,
+    displayError: getReadableSyncError(operation, operation.lastError),
   };
 }
 

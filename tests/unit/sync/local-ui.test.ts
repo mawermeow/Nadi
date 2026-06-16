@@ -253,6 +253,7 @@ describe('local ui helpers', () => {
     expect(issues).toHaveLength(2);
     expect(issues[0]?.title).toBe('項目更新');
     expect(issues[0]?.statusLabel).toBe('同步衝突');
+    expect(issues[0]?.displayError).toContain('本機版本與雲端版本不同');
     expect(issues[1]?.title).toBe('紀錄新增');
     expect(issues[1]?.lastError).toContain('ENTITY_NOT_FOUND');
   });

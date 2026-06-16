@@ -25,6 +25,7 @@ import {
   HeartPulseIcon,
   LoaderIcon,
   PlusIcon,
+  RefreshIcon,
   SaveIcon,
   SearchIcon,
   Undo2Icon,
@@ -65,6 +66,7 @@ import {
 } from '@/features/sync/local-ui';
 import {
   hydrateSyncTelemetryState,
+  retryFailedOperations,
   startForegroundSync,
   runSync,
 } from '@/features/sync/client-service';
@@ -307,6 +309,7 @@ export function RecordDashboard({
   const [isLoadingTimeline, startTimelineTransition] = useTransition();
   const [isMutatingItem, startItemMutationTransition] = useTransition();
   const [isDeletingRecord, startDeleteTransition] = useTransition();
+  const [isRetryingSync, startRetrySyncTransition] = useTransition();
   const [syncState, setSyncState] = useState<SyncState>(getSyncState());
   const [isHydratingLocal, setIsHydratingLocal] = useState(true);
   const [syncIssues, setSyncIssues] = useState<SyncOperationIssue[]>([]);
@@ -432,6 +435,23 @@ export function RecordDashboard({
 
     setActiveTab(nextTab);
     requestAnimationFrame(scrollToTopAfterTabChange);
+  }
+
+  function handleRetryFailedSync() {
+    startRetrySyncTransition(async () => {
+      try {
+        await retryFailedOperations();
+        await runSync();
+        await Promise.all([
+          loadLocalData({
+            preserveCurrentFilter: true,
+          }),
+          loadSyncIssues(),
+        ]);
+      } catch {
+        // sync state already captures recovery failures.
+      }
+    });
   }
 
   function updateItemFormValue<Key extends keyof ItemFormState>(
@@ -1544,6 +1564,18 @@ export function RecordDashboard({
                   lastError: syncState.lastError,
                 })}
               </p>
+              {syncState.failedCount > 0 ? (
+                <div className="mt-4">
+                  <ActionButton
+                    type="button"
+                    variant="secondary"
+                    icon={<RefreshIcon size={18} />}
+                    label={isRetryingSync ? '正在重新排隊與同步…' : '重新排隊並重試同步'}
+                    onClick={handleRetryFailedSync}
+                    disabled={isRetryingSync}
+                  />
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3">
                 {syncIssues.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-4 text-sm leading-6 text-[var(--muted)]">
@@ -1571,7 +1603,7 @@ export function RecordDashboard({
                         實體 ID：{issue.entityId}
                       </p>
                       <p className="mt-1 text-sm text-[var(--foreground)]">
-                        原因：{issue.lastError ?? '未提供詳細原因'}
+                        原因：{issue.displayError}
                       </p>
                       <p className="mt-1 text-xs text-[var(--muted)]">
                         最近更新：{formatSyncTimestamp(issue.updatedAt)}

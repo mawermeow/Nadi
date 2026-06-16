@@ -329,6 +329,98 @@ describe('client sync service', () => {
     });
   });
 
+  it('does not push record update before its unsynced record create', async () => {
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      pendingOperation,
+      pendingRecordCreateOperation,
+    ]);
+    vi.mocked(pushSyncOperations).mockResolvedValue({
+      accepted: [],
+      rejected: [],
+      conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
+      serverTime: '2026-06-16T02:00:00.000Z',
+    });
+    vi.mocked(itemLocalRepository.getById).mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111',
+      title: '睡眠',
+      type: 'metric',
+      unit: '小時',
+      valueType: 'number',
+      scaleMin: null,
+      scaleMax: null,
+      archived: false,
+      syncStatus: 'synced',
+      createdAt: '2026-06-16T00:00:00.000Z',
+      updatedAt: '2026-06-16T00:00:00.000Z',
+      deletedAt: null,
+      version: 1,
+      lastSyncedAt: '2026-06-16T00:00:00.000Z',
+      deviceId: 'device-local',
+    });
+
+    await pushPendingOperations();
+
+    expect(pushSyncOperations).toHaveBeenCalledWith({
+      deviceId: 'device-local',
+      operations: [
+        expect.objectContaining({
+          operationId: 'op-record-create',
+          operationType: 'create',
+        }),
+      ],
+    });
+  });
+
+  it('defers record create when referenced item is not yet synced', async () => {
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      pendingRecordCreateOperation,
+    ]);
+    vi.mocked(itemLocalRepository.getById).mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111',
+      title: '睡眠',
+      type: 'metric',
+      unit: '小時',
+      valueType: 'number',
+      scaleMin: null,
+      scaleMax: null,
+      archived: false,
+      syncStatus: 'pending',
+      createdAt: '2026-06-16T00:00:00.000Z',
+      updatedAt: '2026-06-16T00:00:00.000Z',
+      deletedAt: null,
+      version: 1,
+      lastSyncedAt: null,
+      deviceId: 'device-local',
+    });
+
+    const result = await pushPendingOperations();
+
+    expect(pushSyncOperations).not.toHaveBeenCalled();
+    expect(result).toBeNull();
+  });
+
   it('skips cloud sync in anonymous local mode', async () => {
     vi.mocked(authClient.getSession).mockResolvedValue({
       data: null,
