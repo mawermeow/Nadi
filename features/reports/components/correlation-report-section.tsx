@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 
+import { Select } from '@/components/forms/select';
+import { TextInput } from '@/components/forms/text-input';
 import type { ItemResponse } from '@/features/items/api';
 import type { CorrelationReportResponse } from '@/features/reports/api';
 import { getDefaultCorrelationDescription } from '@/features/reports/correlation';
@@ -157,12 +159,12 @@ export function CorrelationReportSection({
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             <label className="grid gap-2 sm:col-span-2">
               <span className="text-sm font-medium">分析目標症狀</span>
-              <select
+              <Select
+                variant="symptom"
                 value={effectiveSymptomItemId}
                 onChange={(event) =>
                   updateFilter('symptomItemId', event.target.value)
                 }
-                className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-rose-400"
               >
                 {symptomItems.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -170,24 +172,24 @@ export function CorrelationReportSection({
                     {item.archived ? '（已封存）' : ''}
                   </option>
                 ))}
-              </select>
+              </Select>
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-medium">開始日期</span>
-              <input
+              <TextInput
+                variant="symptom"
                 type="date"
                 value={filterState.from}
                 onChange={(event) => updateFilter('from', event.target.value)}
-                className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-rose-400"
               />
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-medium">結束日期</span>
-              <input
+              <TextInput
+                variant="symptom"
                 type="date"
                 value={filterState.to}
                 onChange={(event) => updateFilter('to', event.target.value)}
-                className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-rose-400"
               />
             </label>
           </div>

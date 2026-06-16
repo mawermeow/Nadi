@@ -8,6 +8,9 @@ import { DashboardView } from '@/features/records/components/dashboard-view';
 import { RecordsListView } from '@/features/records/components/records-list-view';
 import { ReportsView } from '@/features/records/components/reports-view';
 import { SettingsView } from '@/features/records/components/settings-view';
+import { Select } from '@/components/forms/select';
+import { TextInput } from '@/components/forms/text-input';
+import { Textarea } from '@/components/forms/textarea';
 import type { ItemResponse } from '@/features/items/api';
 import type { RecordResponse } from '@/features/records/api';
 import type {
@@ -831,10 +834,9 @@ export function RecordDashboard({
                 {recordItemTypeTab === 'metric' ? '指標' : '症狀'}項目。
               </div>
             ) : (
-              <select
+              <Select
                 value={recordFormState.itemId}
                 onChange={(event) => updateRecordFormValue('itemId', event.target.value)}
-                className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
               >
                 {selectableRecordItems.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -842,7 +844,7 @@ export function RecordDashboard({
                     {item.unit ? ` (${item.unit})` : ''}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
             {recordFieldErrors.itemId?.[0] ? (
               <span className="text-sm text-rose-700">
@@ -869,7 +871,7 @@ export function RecordDashboard({
                     : ''}
                 </span>
                 {selectedItem.valueType === 'boolean' ? (
-                  <select
+                  <Select
                     value={recordFormState.valueBoolean}
                     onChange={(event) =>
                       updateRecordFormValue(
@@ -877,19 +879,17 @@ export function RecordDashboard({
                         event.target.value as 'true' | 'false',
                       )
                     }
-                    className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                   >
                     <option value="true">是</option>
                     <option value="false">否</option>
-                  </select>
+                  </Select>
                 ) : (
-                  <input
+                  <TextInput
                     inputMode={selectedItem.valueType === 'text' ? 'text' : 'decimal'}
                     value={recordFormState.valueText}
                     onChange={(event) =>
                       updateRecordFormValue('valueText', event.target.value)
                     }
-                    className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                     placeholder={
                       selectedItem.valueType === 'text'
                         ? '輸入你想記下的內容'
@@ -910,20 +910,19 @@ export function RecordDashboard({
 
           <label className="grid gap-2">
             <span className="text-sm font-medium">紀錄時間</span>
-            <input
+            <TextInput
               type="datetime-local"
               value={recordFormState.recordedAt}
               onChange={(event) => updateRecordFormValue('recordedAt', event.target.value)}
-              className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
             />
           </label>
 
           <label className="grid gap-2">
             <span className="text-sm font-medium">備註</span>
-            <textarea
+            <Textarea
+              className="min-h-28"
               value={recordFormState.note}
               onChange={(event) => updateRecordFormValue('note', event.target.value)}
-              className="min-h-28 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
               placeholder="可留空，例如：午睡後、晚餐後"
             />
           </label>
@@ -985,10 +984,9 @@ export function RecordDashboard({
       <div className="mt-5 grid gap-4">
         <label className="grid gap-2">
           <span className="text-sm font-medium">項目名稱</span>
-          <input
+          <TextInput
             value={itemFormState.title}
             onChange={(event) => updateItemFormValue('title', event.target.value)}
-            className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
             placeholder="例如：睡眠、喝水、頭痛"
           />
           {itemFieldErrors.title?.[0] ? (
@@ -1016,7 +1014,7 @@ export function RecordDashboard({
 
         <label className="grid gap-2">
           <span className="text-sm font-medium">值的格式</span>
-          <select
+          <Select
             value={itemFormState.valueType}
             onChange={(event) =>
               updateItemFormValue(
@@ -1024,22 +1022,20 @@ export function RecordDashboard({
                 event.target.value as ItemFormState['valueType'],
               )
             }
-            className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
           >
             {valueTypeOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
 
         <label className="grid gap-2">
           <span className="text-sm font-medium">單位</span>
-          <input
+          <TextInput
             value={itemFormState.unit}
             onChange={(event) => updateItemFormValue('unit', event.target.value)}
-            className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
             placeholder="例如：小時、杯、次"
           />
         </label>
@@ -1048,21 +1044,19 @@ export function RecordDashboard({
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-2">
               <span className="text-sm font-medium">量表最小值</span>
-              <input
+              <TextInput
                 inputMode="numeric"
                 value={itemFormState.scaleMin}
                 onChange={(event) => updateItemFormValue('scaleMin', event.target.value)}
-                className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 placeholder="0"
               />
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-medium">量表最大值</span>
-              <input
+              <TextInput
                 inputMode="numeric"
                 value={itemFormState.scaleMax}
                 onChange={(event) => updateItemFormValue('scaleMax', event.target.value)}
-                className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 placeholder="10"
               />
             </label>
@@ -1123,10 +1117,9 @@ export function RecordDashboard({
         </div>
         <label className="grid gap-2">
           <span className="text-sm font-medium">項目篩選</span>
-          <select
+          <Select
             value={filterState.itemId}
             onChange={(event) => updateFilterValue('itemId', event.target.value)}
-            className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
           >
             <option value="">
               全部{filterState.itemType === 'metric' ? '指標' : '症狀'}
@@ -1137,24 +1130,22 @@ export function RecordDashboard({
                 {item.archived ? '（已封存）' : ''}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="grid gap-2">
           <span className="text-sm font-medium">開始日期</span>
-          <input
+          <TextInput
             type="date"
             value={filterState.from}
             onChange={(event) => updateFilterValue('from', event.target.value)}
-            className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
           />
         </label>
         <label className="grid gap-2">
           <span className="text-sm font-medium">結束日期</span>
-          <input
+          <TextInput
             type="date"
             value={filterState.to}
             onChange={(event) => updateFilterValue('to', event.target.value)}
-            className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
           />
         </label>
       </div>

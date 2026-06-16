@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import { TextInput } from '@/components/forms/text-input';
 import type { SummaryReportResponse } from '@/features/reports/api';
 import {
   formatMetricPreviewValue,
@@ -110,20 +111,18 @@ export function SummaryReportSection({
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-medium">開始日期</span>
-          <input
+          <TextInput
             type="date"
             value={filterState.from}
             onChange={(event) => updateFilter('from', event.target.value)}
-            className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
           />
         </label>
         <label className="grid gap-2">
           <span className="text-sm font-medium">結束日期</span>
-          <input
+          <TextInput
             type="date"
             value={filterState.to}
             onChange={(event) => updateFilter('to', event.target.value)}
-            className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
           />
         </label>
       </div>

@@ -2,6 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 
+import { Select } from '@/components/forms/select';
+import { TextInput } from '@/components/forms/text-input';
 import type { ItemResponse } from '@/features/items/api';
 
 type ItemDashboardProps = {
@@ -174,10 +176,9 @@ export function ItemDashboard({
             <div className="mt-5 grid gap-4">
               <label className="grid gap-2">
                 <span className="text-sm font-medium">項目名稱</span>
-                <input
+                <TextInput
                   value={formState.title}
                   onChange={(event) => updateFormValue('title', event.target.value)}
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none ring-0 transition focus:border-[var(--accent)]"
                   placeholder="例如：睡眠、喝水、頭痛"
                 />
                 {fieldErrors.title?.[0] ? (
@@ -209,7 +210,7 @@ export function ItemDashboard({
 
               <label className="grid gap-2">
                 <span className="text-sm font-medium">值的格式</span>
-                <select
+                <Select
                   value={formState.valueType}
                   onChange={(event) =>
                     updateFormValue(
@@ -217,14 +218,13 @@ export function ItemDashboard({
                       event.target.value as FormState['valueType'],
                     )
                   }
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 >
                   {valueTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </Select>
                 {fieldErrors.valueType?.[0] ? (
                   <span className="text-sm text-rose-700">
                     {fieldErrors.valueType[0]}
@@ -234,10 +234,9 @@ export function ItemDashboard({
 
               <label className="grid gap-2">
                 <span className="text-sm font-medium">單位</span>
-                <input
+                <TextInput
                   value={formState.unit}
                   onChange={(event) => updateFormValue('unit', event.target.value)}
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                   placeholder="例如：小時、杯、次"
                 />
                 {fieldErrors.unit?.[0] ? (
@@ -251,13 +250,12 @@ export function ItemDashboard({
                 <div className="grid grid-cols-2 gap-3">
                   <label className="grid gap-2">
                     <span className="text-sm font-medium">量表最小值</span>
-                    <input
+                    <TextInput
                       inputMode="numeric"
                       value={formState.scaleMin}
                       onChange={(event) =>
                         updateFormValue('scaleMin', event.target.value)
                       }
-                      className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                       placeholder="0"
                     />
                     {fieldErrors.scaleMin?.[0] ? (
@@ -268,13 +266,12 @@ export function ItemDashboard({
                   </label>
                   <label className="grid gap-2">
                     <span className="text-sm font-medium">量表最大值</span>
-                    <input
+                    <TextInput
                       inputMode="numeric"
                       value={formState.scaleMax}
                       onChange={(event) =>
                         updateFormValue('scaleMax', event.target.value)
                       }
-                      className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                       placeholder="10"
                     />
                     {fieldErrors.scaleMax?.[0] ? (
