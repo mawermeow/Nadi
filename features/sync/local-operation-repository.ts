@@ -30,6 +30,12 @@ export const syncOperationRepository = {
   listPending() {
     return listBySyncStatus<LocalSyncOperation>('syncOperations', 'pending');
   },
+  listFailed() {
+    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'failed');
+  },
+  listConflicts() {
+    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'conflict');
+  },
   markSynced(id: string, input: { version?: number; lastSyncedAt: string }) {
     return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
       ...current,
@@ -48,6 +54,25 @@ export const syncOperationRepository = {
       updatedAt: new Date().toISOString(),
       retryCount: current.retryCount + 1,
       lastError: input?.lastError ?? current.lastError,
+    }));
+  },
+  markConflict(id: string, input?: { lastError?: string; lastSyncedAt?: string }) {
+    return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
+      ...current,
+      status: 'conflict',
+      syncStatus: 'conflict',
+      updatedAt: new Date().toISOString(),
+      lastSyncedAt: input?.lastSyncedAt ?? current.lastSyncedAt,
+      lastError: input?.lastError ?? current.lastError,
+    }));
+  },
+  requeue(id: string) {
+    return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
+      ...current,
+      status: 'pending',
+      syncStatus: 'pending',
+      updatedAt: new Date().toISOString(),
+      lastError: null,
     }));
   },
 };

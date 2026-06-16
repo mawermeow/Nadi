@@ -43,4 +43,8 @@ export const syncMetaRepository = {
       syncStatus: 'failed',
     }));
   },
+  async getByKey(key: string) {
+    const values = await getAllFromStore<LocalSyncMeta>('syncMeta');
+    return values.find((value) => value.key === key) ?? null;
+  },
 };

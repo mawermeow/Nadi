@@ -1,6 +1,5 @@
+import { DEVICE_META_ID } from '@/features/sync/meta';
 import { syncMetaRepository } from '@/features/sync/local-meta-repository';
-
-const DEVICE_META_ID = 'device-id';
 
 export async function getOrCreateDeviceId() {
   const existingMeta = await syncMetaRepository.getById(DEVICE_META_ID);

@@ -49,4 +49,11 @@ export const recordLocalRepository = {
       syncStatus: 'failed',
     }));
   },
+  markConflict(id: string, input?: { lastSyncedAt?: string }) {
+    return updateStoreEntity<LocalRecord>('records', id, (current) => ({
+      ...current,
+      syncStatus: 'conflict',
+      lastSyncedAt: input?.lastSyncedAt ?? current.lastSyncedAt,
+    }));
+  },
 };

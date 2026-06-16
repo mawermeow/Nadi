@@ -1,6 +1,6 @@
 # API Design
 
-目前 API 仍以 online-first CRUD 為主，但已逐步補上 offline-first 所需的 server contract。
+目前 API 仍以 online-first CRUD 為主，但已逐步補上與 local store 串接的 sync contract。
 
 目前已完成：
 
@@ -9,11 +9,12 @@
 - items / records delete 已改為 soft delete
 - GET list 預設排除 soft-deleted rows
 - sync push / pull skeleton 已建立
+- sync client 與 foreground sync service 已接上 sync API
 
 目前尚未完成：
 
-- IndexedDB local store
-- background sync
+- UI 全面 local-first
+- reliable iOS background sync
 - sync operation idempotency persistence
 - 完整 conflict resolution UI
 
@@ -166,6 +167,15 @@ Rules:
 
 ## Sync API
 
+目前 sync runtime 說明：
+
+- sync 是 foreground / `online` event 驅動
+- `navigator.onLine === false` 時 client 不送 sync request
+- iOS PWA background sync 不保證可靠，因此目前不依賴真正的 background task
+- local store 已接上 sync API，但 UI 尚未全面改為 local-first
+- conflict 目前只偵測與標記，不自動覆蓋本機資料
+- pull 需要保留 tombstones，讓 client 能同步 soft delete 事件
+
 ## `POST /v1/sync/push`
 
 Request body:
@@ -242,6 +252,12 @@ Conflict 偵測方式：
 - compare `baseVersion` with current server `version`
 - mismatch 時回傳 `currentVersion` 與 `serverEntity`
 
+Client side handling：
+
+- `accepted`：標記 local operation `synced`，同步更新 local entity `version`、`syncStatus`、`lastSyncedAt`
+- `rejected`：標記 local operation / entity `failed`，保留 `lastError`
+- `conflicts`：標記 local operation / entity `conflict`，不自動覆蓋本機資料
+
 ## `POST /v1/sync/pull`
 
 Request body:
@@ -275,6 +291,7 @@ Tombstone 用途：
 
 - 讓未來 client local store 能知道刪除事件
 - sync pull 不只回傳活資料，也要回傳刪除事件
+- client 收到 tombstone 時，會對對應 local entity 套用 soft delete
 
 ## Idempotency Note
 
