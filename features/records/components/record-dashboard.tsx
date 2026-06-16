@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 
 import { AppShell } from '@/features/records/components/app-shell';
 import { CreateEntryView } from '@/features/records/components/create-entry-view';
@@ -16,6 +16,25 @@ import type {
 } from '@/features/reports/api';
 import { CorrelationReportSection } from '@/features/reports/components/correlation-report-section';
 import { SummaryReportSection } from '@/features/reports/components/summary-report-section';
+import {
+  createLocalItem,
+  createLocalRecord,
+  deleteLocalRecord,
+  updateLocalItem,
+  updateLocalRecord,
+} from '@/features/sync/local-service';
+import {
+  getSyncStatusPresentation,
+  hydrateLocalStoreFromServerSnapshot,
+  loadLocalItems,
+  loadLocalRecords,
+  mapLocalItemToItemResponse,
+  mapLocalRecordToRecordResponse,
+} from '@/features/sync/local-ui';
+import { startForegroundSync, runSync } from '@/features/sync/client-service';
+import { getSyncState, subscribeSyncState, type SyncState } from '@/features/sync/state';
+import { itemLocalRepository } from '@/features/items/local-repository';
+import { recordLocalRepository } from '@/features/records/local-repository';
 
 type RecordDashboardProps = {
   initialItems: ItemResponse[];
@@ -165,6 +184,17 @@ function getSummaryViewTitle(tabId: (typeof appTabs)[number]['id']) {
   }
 }
 
+function formatSyncTimestamp(value: string | null) {
+  if (!value) {
+    return '尚未同步';
+  }
+
+  return new Intl.DateTimeFormat('zh-TW', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
 export function RecordDashboard({
   initialItems,
   initialRecords,
@@ -193,6 +223,7 @@ export function RecordDashboard({
     recordedAt: formatDateTimeLocal(),
     note: '',
   });
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [filterState, setFilterState] = useState<FilterState>({
     itemType: initialRecordItemType,
     itemId: '',
@@ -211,6 +242,8 @@ export function RecordDashboard({
   const [isLoadingTimeline, startTimelineTransition] = useTransition();
   const [isMutatingItem, startItemMutationTransition] = useTransition();
   const [isDeletingRecord, startDeleteTransition] = useTransition();
+  const [syncState, setSyncState] = useState<SyncState>(getSyncState());
+  const [isHydratingLocal, setIsHydratingLocal] = useState(true);
 
   const activeItems = useMemo(
     () => items.filter((item) => !item.archived),
@@ -237,6 +270,71 @@ export function RecordDashboard({
       selectableRecordItems.find((item) => item.id === recordFormState.itemId) ??
       null,
     [recordFormState.itemId, selectableRecordItems],
+  );
+  const syncStatusCard = useMemo(() => {
+    const statusLabel = {
+      idle: '已就緒',
+      syncing: '同步中',
+      offline: '離線',
+      error: '同步錯誤',
+      conflict: '有同步衝突',
+    }[syncState.status];
+
+    return {
+      statusLabel,
+      lastSyncAt: formatSyncTimestamp(syncState.lastSyncAt),
+    };
+  }, [syncState.lastSyncAt, syncState.status]);
+
+  const loadLocalData = useCallback(
+    async (options?: {
+      preserveCurrentFilter?: boolean;
+    }) => {
+      const [nextItems, nextRecords] = await Promise.all([
+        loadLocalItems(),
+        loadLocalRecords({
+          itemId: options?.preserveCurrentFilter ? filterState.itemId || undefined : undefined,
+          itemType: options?.preserveCurrentFilter ? filterState.itemType : undefined,
+          from:
+            options?.preserveCurrentFilter && filterState.from
+              ? dateInputToRange(filterState.from, 'start')
+              : undefined,
+          to:
+            options?.preserveCurrentFilter && filterState.to
+              ? dateInputToRange(filterState.to, 'end')
+              : undefined,
+          limit:
+            options?.preserveCurrentFilter &&
+            (filterState.itemId || filterState.from || filterState.to)
+              ? 100
+              : 20,
+        }),
+      ]);
+
+      setItems(nextItems);
+      setRecords(nextRecords);
+
+      setRecordFormState((currentState) => {
+        const nextItemExists = nextItems.some(
+          (item) => item.id === currentState.itemId && !item.archived,
+        );
+
+        if (nextItemExists) {
+          return currentState;
+        }
+
+        const nextDefaultItem =
+          nextItems.find(
+            (item) => !item.archived && item.type === recordItemTypeTab,
+          ) ?? nextItems.find((item) => !item.archived);
+
+        return {
+          ...currentState,
+          itemId: nextDefaultItem?.id ?? '',
+        };
+      });
+    },
+    [filterState.from, filterState.itemId, filterState.itemType, filterState.to, recordItemTypeTab],
   );
 
   function navigateToTab(tabId: string) {
@@ -297,6 +395,89 @@ export function RecordDashboard({
     }));
   }
 
+  function populateRecordFormForEdit(record: RecordResponse) {
+    const recordItem = items.find((item) => item.id === record.itemId);
+
+    setEditingRecordId(record.id);
+    setRecordItemTypeTab(record.itemType);
+    setRecordFormState({
+      itemId: record.itemId,
+      valueText:
+        typeof record.value === 'string' || typeof record.value === 'number'
+          ? String(record.value)
+          : '',
+      valueBoolean: typeof record.value === 'boolean' && !record.value ? 'false' : 'true',
+      recordedAt: formatDateTimeLocal(new Date(record.recordedAt)),
+      note: record.note ?? '',
+    });
+    setRecordNotice(
+      recordItem
+        ? `正在編輯「${recordItem.title}」的紀錄。`
+        : '正在編輯這筆紀錄。',
+    );
+    setActiveTab('create');
+  }
+
+  function resetRecordForm() {
+    setEditingRecordId(null);
+    setRecordFormState((currentState) => ({
+      ...currentState,
+      valueText: '',
+      valueBoolean: 'true',
+      note: '',
+      recordedAt: formatDateTimeLocal(),
+    }));
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+    let stopForegroundSync: () => void = () => {};
+
+    async function initializeLocalFirstUi() {
+      await hydrateLocalStoreFromServerSnapshot({
+        items: initialItems,
+        records: initialRecords,
+      });
+
+      if (!isMounted) {
+        return;
+      }
+
+      await loadLocalData();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setIsHydratingLocal(false);
+      stopForegroundSync = startForegroundSync();
+
+      try {
+        await runSync();
+      } catch {
+        // Sync state already captures foreground sync failures.
+      }
+    }
+
+    void initializeLocalFirstUi();
+
+    const unsubscribe = subscribeSyncState((nextState) => {
+      setSyncState(nextState);
+
+      if (nextState.lastSyncAt) {
+        void loadLocalData({
+          preserveCurrentFilter: true,
+        });
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+      stopForegroundSync();
+    };
+  }, [initialItems, initialRecords, loadLocalData]);
+
   async function handleCreateItem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setItemError(null);
@@ -315,29 +496,38 @@ export function RecordDashboard({
     };
 
     startItemTransition(async () => {
-      const response = await fetch('/v1/items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
+      try {
+        const createdItem = await createLocalItem({
+          title: payload.title,
+          type: payload.type,
+          valueType: payload.valueType,
+          unit: payload.unit || null,
+          scaleMin:
+            payload.scaleMin !== undefined && payload.scaleMin !== ''
+              ? Number(payload.scaleMin)
+              : null,
+          scaleMax:
+            payload.scaleMax !== undefined && payload.scaleMax !== ''
+              ? Number(payload.scaleMax)
+              : null,
+        });
+        const data = mapLocalItemToItemResponse(createdItem);
 
-      if (!response.ok) {
-        setItemError(data.error?.message ?? '建立項目失敗');
-        setItemFieldErrors(data.error?.fieldErrors ?? {});
+        setItems((currentItems) => [data, ...currentItems]);
+        setItemFormState(defaultItemFormState);
+        setRecordItemTypeTab(data.type);
+        setRecordFormState((currentState) => ({
+          ...currentState,
+          itemId: data.id,
+        }));
+        setItemNotice(`已建立「${data.title}」，現在可以直接用它來新增紀錄。`);
+        await loadLocalData();
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setItemError(error instanceof Error ? error.message : '建立項目失敗');
+        setItemFieldErrors({});
         return;
       }
-
-      setItems((currentItems) => [data, ...currentItems]);
-      setItemFormState(defaultItemFormState);
-      setRecordItemTypeTab(data.type);
-      setRecordFormState((currentState) => ({
-        ...currentState,
-        itemId: data.id,
-      }));
-      setItemNotice(`已建立「${data.title}」，現在可以直接用它來新增紀錄。`);
     });
   }
 
@@ -364,35 +554,58 @@ export function RecordDashboard({
     }
 
     startRecordTransition(async () => {
-      const response = await fetch('/v1/records', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      try {
+        if (editingRecordId) {
+          const updatedRecord = await updateLocalRecord({
+            id: editingRecordId,
+            itemId: selectedItem.id,
+            value,
+            recordedAt: localInputToIso(recordFormState.recordedAt),
+            note: recordFormState.note || null,
+          });
+          const localItem = await itemLocalRepository.getById(updatedRecord.itemId);
+
+          if (!localItem) {
+            throw new Error('找不到對應的本機項目');
+          }
+
+          const data = mapLocalRecordToRecordResponse(updatedRecord, localItem);
+          setRecords((currentRecords) =>
+            currentRecords.map((currentRecord) =>
+              currentRecord.id === data.id ? data : currentRecord,
+            ),
+          );
+          resetRecordForm();
+          setRecordNotice(`已更新「${data.itemTitle}」的紀錄。`);
+          await loadLocalData({
+            preserveCurrentFilter: true,
+          });
+          void runSync().catch(() => undefined);
+          return;
+        }
+
+        const createdRecord = await createLocalRecord({
           itemId: selectedItem.id,
           value,
           recordedAt: localInputToIso(recordFormState.recordedAt),
-          note: recordFormState.note,
-        }),
-      });
-      const data = await response.json();
+          note: recordFormState.note || null,
+        });
+        const localItem = await itemLocalRepository.getById(createdRecord.itemId);
 
-      if (!response.ok) {
-        setRecordError(data.error?.message ?? '建立紀錄失敗');
-        setRecordFieldErrors(data.error?.fieldErrors ?? {});
-        return;
+        if (!localItem) {
+          throw new Error('找不到對應的本機項目');
+        }
+
+        const data = mapLocalRecordToRecordResponse(createdRecord, localItem);
+        setRecords((currentRecords) => [data, ...currentRecords].slice(0, 20));
+        resetRecordForm();
+        setRecordNotice(`已記下「${data.itemTitle}」，你可以繼續補下一筆。`);
+        await loadLocalData();
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setRecordError(error instanceof Error ? error.message : '建立紀錄失敗');
+        setRecordFieldErrors({});
       }
-
-      setRecords((currentRecords) => [data, ...currentRecords].slice(0, 20));
-      setRecordFormState((currentState) => ({
-        ...currentState,
-        valueText: '',
-        valueBoolean: 'true',
-        note: '',
-        recordedAt: formatDateTimeLocal(),
-      }));
-      setRecordNotice(`已記下「${data.itemTitle}」，你可以繼續補下一筆。`);
     });
   }
 
@@ -401,39 +614,38 @@ export function RecordDashboard({
     setItemNotice(null);
 
     startItemMutationTransition(async () => {
-      const response = await fetch(`/v1/items/${item.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ archived }),
-      });
-      const data = await response.json();
+      try {
+        const updatedItem = await updateLocalItem({
+          id: item.id,
+          archived,
+        });
+        const data = mapLocalItemToItemResponse(updatedItem);
 
-      if (!response.ok) {
-        setItemError(data.error?.message ?? '更新項目失敗');
+        setItems((currentItems) =>
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id ? data : currentItem,
+          ),
+        );
+
+        if (archived && recordFormState.itemId === item.id) {
+          const nextItem = activeItems.find((currentItem) => currentItem.id !== item.id);
+          setRecordFormState((currentState) => ({
+            ...currentState,
+            itemId: nextItem?.id ?? '',
+          }));
+        }
+
+        setItemNotice(
+          archived
+            ? `已封存「${item.title}」，它不會再出現在預設選單中。`
+            : `已恢復「${item.title}」，現在可以再次使用。`,
+        );
+        await loadLocalData();
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setItemError(error instanceof Error ? error.message : '更新項目失敗');
         return;
       }
-
-      setItems((currentItems) =>
-        currentItems.map((currentItem) =>
-          currentItem.id === item.id ? data : currentItem,
-        ),
-      );
-
-      if (archived && recordFormState.itemId === item.id) {
-        const nextItem = activeItems.find((currentItem) => currentItem.id !== item.id);
-        setRecordFormState((currentState) => ({
-          ...currentState,
-          itemId: nextItem?.id ?? '',
-        }));
-      }
-
-      setItemNotice(
-        archived
-          ? `已封存「${item.title}」，它不會再出現在預設選單中。`
-          : `已恢復「${item.title}」，現在可以再次使用。`,
-      );
     });
   }
 
@@ -441,32 +653,20 @@ export function RecordDashboard({
     setTimelineError(null);
     setRecordNotice(null);
 
-    const params = new URLSearchParams();
-
-    if (filterState.itemId) {
-      params.set('itemId', filterState.itemId);
-    }
-
-    params.set('itemType', filterState.itemType);
-
-    const from = dateInputToRange(filterState.from, 'start');
-    const to = dateInputToRange(filterState.to, 'end');
-
-    if (from && to) {
-      params.set('from', from);
-      params.set('to', to);
-    }
-
     startTimelineTransition(async () => {
-      const response = await fetch(`/v1/records?${params.toString()}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        setTimelineError(data.error?.message ?? '讀取紀錄失敗');
+      try {
+        const nextRecords = await loadLocalRecords({
+          itemId: filterState.itemId || undefined,
+          itemType: filterState.itemType,
+          from: dateInputToRange(filterState.from, 'start'),
+          to: dateInputToRange(filterState.to, 'end'),
+          limit: 100,
+        });
+        setRecords(nextRecords);
+      } catch (error) {
+        setTimelineError(error instanceof Error ? error.message : '讀取紀錄失敗');
         return;
       }
-
-      setRecords(data.records);
     });
   }
 
@@ -475,20 +675,20 @@ export function RecordDashboard({
     setRecordNotice(null);
 
     startDeleteTransition(async () => {
-      const response = await fetch(`/v1/records/${recordId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setTimelineError(data.error?.message ?? '刪除紀錄失敗');
+      try {
+        await deleteLocalRecord(recordId);
+        setRecords((currentRecords) =>
+          currentRecords.filter((record) => record.id !== recordId),
+        );
+        setRecordNotice('已刪除這筆紀錄。');
+        await loadLocalData({
+          preserveCurrentFilter: true,
+        });
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setTimelineError(error instanceof Error ? error.message : '刪除紀錄失敗');
         return;
       }
-
-      setRecords((currentRecords) =>
-        currentRecords.filter((record) => record.id !== recordId),
-      );
-      setRecordNotice('已刪除這筆紀錄。');
     });
   }
 
@@ -516,6 +716,13 @@ export function RecordDashboard({
                       已封存項目
                     </span>
                   ) : null}
+                  {getSyncStatusPresentation(record.syncStatus) ? (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(record.syncStatus)?.className}`}
+                    >
+                      {getSyncStatusPresentation(record.syncStatus)?.label}
+                    </span>
+                  ) : null}
                 </div>
                 <p
                   className={`mt-3 inline-flex rounded-2xl px-3 py-2 ${compact ? 'text-base' : 'text-lg'} font-medium ${getRecordValueClass(record.itemType)}`}
@@ -535,14 +742,23 @@ export function RecordDashboard({
                 ) : null}
               </div>
               {!compact ? (
-                <button
-                  type="button"
-                  onClick={() => deleteRecord(record.id)}
-                  disabled={isDeletingRecord}
-                  className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium sm:self-start"
-                >
-                  {isDeletingRecord ? '處理中…' : '刪除'}
-                </button>
+                <div className="flex gap-2 sm:self-start">
+                  <button
+                    type="button"
+                    onClick={() => populateRecordFormForEdit(record)}
+                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
+                  >
+                    編輯
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteRecord(record.id)}
+                    disabled={isDeletingRecord}
+                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
+                  >
+                    {isDeletingRecord ? '處理中…' : '刪除'}
+                  </button>
+                </div>
               ) : null}
             </div>
           </article>
@@ -571,13 +787,37 @@ export function RecordDashboard({
         </section>
       );
 
+  const syncStatusPanel = (
+    <section className="rounded-[1.5rem] border border-[var(--line)] bg-white/88 px-4 py-3 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="font-medium text-[var(--foreground)]">
+          同步狀態：{syncStatusCard.statusLabel}
+        </span>
+        <span className="text-[var(--muted)]">
+          pending {syncState.pendingCount}
+        </span>
+        <span className="text-[var(--muted)]">
+          failed {syncState.failedCount}
+        </span>
+        <span className="text-[var(--muted)]">
+          conflict {syncState.conflictCount}
+        </span>
+        <span className="text-[var(--muted)]">
+          上次同步：{syncStatusCard.lastSyncAt}
+        </span>
+      </div>
+    </section>
+  );
+
   const recordForm = (
     <form
       onSubmit={handleCreateRecord}
       className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6"
     >
       <div>
-        <h2 className="text-xl font-semibold">新增紀錄</h2>
+        <h2 className="text-xl font-semibold">
+          {editingRecordId ? '編輯紀錄' : '新增紀錄'}
+        </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           先選項目、再填一個值即可。若只是快速補記，備註可以先留空。
         </p>
@@ -732,8 +972,23 @@ export function RecordDashboard({
         }
         className="mt-5 min-h-12 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isSubmittingRecord ? '儲存紀錄中…' : '儲存這筆紀錄'}
+        {isSubmittingRecord
+          ? editingRecordId
+            ? '更新紀錄中…'
+            : '儲存紀錄中…'
+          : editingRecordId
+            ? '更新這筆紀錄'
+            : '儲存這筆紀錄'}
       </button>
+      {editingRecordId ? (
+        <button
+          type="button"
+          onClick={resetRecordForm}
+          className="mt-3 min-h-12 w-full rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
+        >
+          取消編輯
+        </button>
+      ) : null}
     </form>
   );
 
@@ -945,7 +1200,7 @@ export function RecordDashboard({
               to: '',
             });
             setTimelineError(null);
-            setRecords(initialRecords);
+            void loadLocalData();
           }}
           className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
         >
@@ -1023,6 +1278,13 @@ export function RecordDashboard({
                       >
                         {item.type === 'metric' ? '指標' : '症狀'}
                       </span>
+                      {getSyncStatusPresentation(item.syncStatus) ? (
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
+                        >
+                          {getSyncStatusPresentation(item.syncStatus)?.label}
+                        </span>
+                      ) : null}
                     </div>
                     <p className="mt-2 text-sm text-[var(--muted)]">
                       格式：{getValueTypeLabel(item.valueType)}
@@ -1073,6 +1335,15 @@ export function RecordDashboard({
                       <p className="mt-2 text-sm text-[var(--muted)]">
                         {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType)}
                       </p>
+                      {getSyncStatusPresentation(item.syncStatus) ? (
+                        <p className="mt-2">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
+                          >
+                            {getSyncStatusPresentation(item.syncStatus)?.label}
+                          </span>
+                        </p>
+                      ) : null}
                     </div>
                     <button
                       type="button"
@@ -1099,6 +1370,7 @@ export function RecordDashboard({
   return (
     <AppShell
       activeTab={activeTab}
+      headerStatus={syncStatusPanel}
       onTabChange={navigateToTab}
       tabs={[...appTabs]}
     >
@@ -1123,10 +1395,23 @@ export function RecordDashboard({
                   {symptomItems.length}
                 </p>
               </article>
+              <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
+                <p className="text-sm text-[var(--muted)]">同步</p>
+                <p className="mt-2 text-lg font-semibold sm:text-xl">
+                  {syncState.status === 'offline' ? '離線中' : syncStatusCard.statusLabel}
+                </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  pending {syncState.pendingCount} / failed {syncState.failedCount}
+                </p>
+              </article>
             </div>
           }
           recentRecords={
-            records.length === 0 ? (
+            isHydratingLocal ? (
+              <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
+                正在載入本機資料…
+              </div>
+            ) : records.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
                 目前還沒有最近紀錄。可以先到「新增紀錄」記下一筆，再回到這裡快速確認。
               </div>
@@ -1178,7 +1463,32 @@ export function RecordDashboard({
       ) : null}
 
       {activeTab === 'settings' ? (
-        <SettingsView itemManagement={settingsPanel} />
+        <SettingsView
+          itemManagement={settingsPanel}
+          syncStatus={
+            <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
+              <h2 className="text-xl font-semibold">同步狀態</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-sm text-[var(--muted)]">目前狀態</p>
+                  <p className="mt-2 text-lg font-semibold">{syncStatusCard.statusLabel}</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-sm text-[var(--muted)]">待同步</p>
+                  <p className="mt-2 text-lg font-semibold">{syncState.pendingCount}</p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-sm text-[var(--muted)]">上次同步</p>
+                  <p className="mt-2 text-sm font-medium">{syncStatusCard.lastSyncAt}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-[var(--muted)]">
+                failed {syncState.failedCount} / conflict {syncState.conflictCount}
+                {syncState.lastError ? ` / ${syncState.lastError}` : ''}
+              </p>
+            </section>
+          }
+        />
       ) : null}
     </AppShell>
   );

@@ -9,6 +9,7 @@ export type ItemResponse = {
   scaleMin?: number;
   scaleMax?: number;
   archived: boolean;
+  syncStatus?: 'pending' | 'synced' | 'conflict' | 'failed';
   version: number;
   createdAt: string;
 };
@@ -23,6 +24,7 @@ export function toItemResponse(item: Item): ItemResponse {
     scaleMin: item.scaleMin ?? undefined,
     scaleMax: item.scaleMax ?? undefined,
     archived: item.archived,
+    syncStatus: item.syncStatus,
     version: item.version,
     createdAt: item.createdAt.toISOString(),
   };

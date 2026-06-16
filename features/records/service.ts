@@ -135,6 +135,7 @@ function toRecordResponse(record: Awaited<ReturnType<typeof listRecordsByUserId>
     recordedAt: record.recordedAt.toISOString(),
     note: record.note ?? undefined,
     itemArchived: record.itemArchived,
+    syncStatus: record.syncStatus,
     version: record.version,
     createdAt: record.createdAt.toISOString(),
   };

@@ -28,28 +28,29 @@
 - 未來可替換或擴充為 SQLite 本機儲存層
 - 保留既有 Route Handlers、Service、Repository 與 Drizzle schema 主軸
 
-目前 Phase E runtime flow：
+目前 Phase F runtime flow：
 
-1. UI 仍以既有 API 為主，IndexedDB 尚未全面成為主要讀取來源
-2. local write flow 會先寫入 IndexedDB 與 `syncOperations`
-3. foreground sync service 在使用者前景互動或 `online` event 時執行 `runSync()`
-4. sync client 先 push `pending` / `failed` operations 到 server
-5. server 以 `version` 檢查衝突，回傳 `accepted` / `rejected` / `conflicts`
-6. client 更新 local entity sync 狀態
-7. client 再 pull 最新 `items` / `records` / `tombstones`
-8. remote changes merge 回 IndexedDB，並更新 `lastPulledAt` / `lastSyncedAt`
+1. items / records UI 優先讀取 IndexedDB
+2. local write flow 先寫入 IndexedDB 與 `syncOperations`
+3. 畫面立即用 local data 更新，不等待 server response
+4. foreground sync service 在前景互動或 `online` event 時執行 `runSync()`
+5. sync client push `pending` / `failed` operations 到 server
+6. server 以 `version` 檢查衝突，回傳 `accepted` / `rejected` / `conflicts`
+7. client 更新 local entity sync 狀態
+8. client 再 pull 最新 `items` / `records` / `tombstones`
+9. remote changes merge 回 IndexedDB，UI 重新讀取 local data
 
 目前仍未完成：
 
-- IndexedDB 尚未全面接入畫面
 - iOS background task integration 尚未實作
 - conflict resolution UI 尚未實作
+- reports 與部分 server-rendered fallback 仍依賴既有 API
 
 詳細設計請見 [offline-sync-design.md](/Users/mawer/WebstormProjects/Nadi/docs/offline-sync-design.md)。
 
-## Phase E Status
+## Phase F Status
 
-目前已補上 local sync runtime：
+目前已補上 local-first 核心流程：
 
 - 使用 IndexedDB 作為本機資料層
 - 建立 `items`、`records`、`syncOperations`、`syncMeta` store
@@ -57,11 +58,11 @@
 - 建立 sync client 與 foreground sync service
 - 建立 online / offline network monitor
 - 建立 sync state store
+- Dashboard / 新增紀錄 / 紀錄列表 / 設定頁讀寫已接到 local store
 
 目前仍維持：
 
-- UI 主要走既有 API
-- IndexedDB 尚未全面接入畫面
+- reports 仍主要走既有 API
 - foreground sync 不依賴 iOS background task
 - PostgreSQL 仍是雲端主資料庫
 
@@ -69,8 +70,8 @@
 
 目前正式執行中的系統尚未包含：
 
-- full local-first UI reads
 - reliable iOS background sync
+- full conflict resolution workflow
 - AI insights
 - Photo upload
 - Queues、Redis、microservices

@@ -81,6 +81,7 @@ export async function listRecordsByUserId(
       unit: items.unit,
       recordedAt: records.recordedAt,
       note: records.note,
+      syncStatus: records.syncStatus,
       version: records.version,
       createdAt: records.createdAt,
     })

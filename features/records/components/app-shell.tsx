@@ -8,6 +8,7 @@ import { SidebarNav } from '@/features/records/components/sidebar-nav';
 type AppShellProps = {
   activeTab: string;
   children: ReactNode;
+  headerStatus?: ReactNode;
   tabs: AppTabItem[];
   onTabChange: (tabId: string) => void;
 };
@@ -15,6 +16,7 @@ type AppShellProps = {
 export function AppShell({
   activeTab,
   children,
+  headerStatus,
   tabs,
   onTabChange,
 }: AppShellProps) {
@@ -28,6 +30,7 @@ export function AppShell({
         />
 
         <div className="grid min-w-0 flex-1 gap-6 pb-6 sm:gap-7 lg:gap-8">
+          {headerStatus}
           {children}
         </div>
       </div>

@@ -4,7 +4,7 @@
 
 在不推翻現有 Next.js + PostgreSQL + Drizzle 架構的前提下，將 Nadi 的資料設計方向調整為 offline-first sync。
 
-目前已進入 Phase E：Foreground sync worker。
+目前已進入 Phase F：Local-first UI integration。
 
 目前已完成：
 
@@ -15,6 +15,7 @@
 - foreground sync client / service
 - online / offline network monitor
 - sync state store
+- local-first items / records UI
 
 目前仍未完成：
 
@@ -22,6 +23,7 @@
 - server-side idempotency persistence
 - conflict resolution UI
 - UI 全面 local-first 化
+- reports UI 仍部分依賴 server API
 
 ## 目前狀態
 
@@ -42,12 +44,14 @@
 - foreground sync service：`pushPendingOperations()`、`pullRemoteChanges()`、`runSync()`、`retryFailedOperations()`
 - network helper：監聽 `online` / `offline` event
 - sync state：`idle`、`syncing`、`offline`、`error`、`conflict`
+- Dashboard / 新增紀錄 / 紀錄列表 / 設定頁已優先讀取 IndexedDB
+- item / record 核心寫入已改走 local service
 
 未具備：
 
 - reliable iOS background sync
 - server-side operation dedup persistence
-- UI conflict handling
+- 完整 conflict resolution UI
 
 ## Sync Push
 
@@ -209,11 +213,20 @@ network 規則：
 - `online` event 觸發 `runSync()`
 - `offline` event 只更新 sync state，不強制送 request
 
+UI local-first 規則：
+
+- 前端主要讀寫來源已切到 IndexedDB local store
+- 畫面先顯示 local data，再由 foreground sync 更新本機資料
+- 線上時背景執行 `runSync()`，同步完成後 UI 重新讀取 local data
+- 離線時仍可新增、修改、刪除 items / records
+- 每筆資料可標示 `pending` / `failed` / `conflict`
+- conflict 目前只標示，不自動解決
+
 重要限制：
 
 - 目前是 foreground / online event 驅動，不依賴真正的 iOS background task
 - iOS PWA background sync 不保證可靠，因此本階段不把它當成正確性前提
 - conflict 目前只偵測與標記，不自動 merge 或覆蓋
 - pull 會保留 tombstones，避免只同步活資料
-- UI 主要仍使用既有 API；local store 與 sync engine 已接上，但畫面尚未全面 local-first
+- items / records 核心 UI 已 local-first；reports 仍會走既有 server API
 - PostgreSQL 仍是雲端主資料庫

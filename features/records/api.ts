@@ -9,6 +9,7 @@ export type RecordResponse = {
   recordedAt: string;
   note?: string;
   itemArchived: boolean;
+  syncStatus?: 'pending' | 'synced' | 'conflict' | 'failed';
   version: number;
   createdAt: string;
 };
