@@ -5,6 +5,11 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { AppShell } from '@/features/records/components/app-shell';
 import { CreateEntryView } from '@/features/records/components/create-entry-view';
 import { DashboardView } from '@/features/records/components/dashboard-view';
+import {
+  RecordCard,
+  RecordCardSkeleton,
+  RecordList,
+} from '@/features/records/components/record-card';
 import { RecordsListView } from '@/features/records/components/records-list-view';
 import { ReportsView } from '@/features/records/components/reports-view';
 import { SettingsView } from '@/features/records/components/settings-view';
@@ -19,11 +24,9 @@ import {
   ArrowRightIcon,
   HeartPulseIcon,
   LoaderIcon,
-  PencilIcon,
   PlusIcon,
   SaveIcon,
   SearchIcon,
-  TrashIcon,
   Undo2Icon,
   XIcon,
   type AppTabIconName,
@@ -164,18 +167,6 @@ function getItemTypeBadgeClass(type: 'metric' | 'symptom') {
     : 'bg-[var(--accent-soft)] text-[var(--accent)]';
 }
 
-function getRecordCardClass(type: 'metric' | 'symptom') {
-  return type === 'symptom'
-    ? 'border-rose-200 bg-rose-50/40'
-    : 'border-[var(--line)] bg-white';
-}
-
-function getRecordValueClass(type: 'metric' | 'symptom') {
-  return type === 'symptom'
-    ? 'bg-rose-100/80 text-rose-800'
-    : 'bg-[var(--accent-soft)] text-[var(--accent)]';
-}
-
 function formatDateTimeLocal(date = new Date()) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return localDate.toISOString().slice(0, 16);
@@ -192,18 +183,6 @@ function dateInputToRange(value: string, edge: 'start' | 'end') {
 
   const suffix = edge === 'start' ? 'T00:00' : 'T23:59:59.999';
   return new Date(`${value}${suffix}`).toISOString();
-}
-
-function formatRecordValue(record: RecordResponse) {
-  if (record.valueType === 'boolean') {
-    return record.value ? '是' : '否';
-  }
-
-  if (record.valueType === 'text') {
-    return String(record.value);
-  }
-
-  return `${record.value}${record.unit ? ` ${record.unit}` : ''}`;
 }
 
 function getSummaryViewTitle(tabId: (typeof appTabs)[number]['id']) {
@@ -796,79 +775,18 @@ export function RecordDashboard({
 
   function renderRecords(recordsToRender: RecordResponse[], compact = false) {
     return (
-      <div className="grid gap-3">
+      <RecordList>
         {recordsToRender.map((record) => (
-          <article
+          <RecordCard
             key={record.id}
-            className={`rounded-2xl border p-4 ${getRecordCardClass(record.itemType)}`}
-          >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className={`${compact ? 'text-sm' : 'text-base'} font-semibold`}>
-                    {record.itemTitle}
-                  </h3>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${getItemTypeBadgeClass(record.itemType)}`}
-                  >
-                    {record.itemType === 'metric' ? '指標' : '症狀'}
-                  </span>
-                  {record.itemArchived ? (
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs text-stone-600">
-                      已封存項目
-                    </span>
-                  ) : null}
-                  {getSyncStatusPresentation(record.syncStatus) ? (
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(record.syncStatus)?.className}`}
-                    >
-                      {getSyncStatusPresentation(record.syncStatus)?.label}
-                    </span>
-                  ) : null}
-                </div>
-                <p
-                  className={`mt-3 inline-flex rounded-2xl px-3 py-2 ${compact ? 'text-base' : 'text-lg'} font-medium ${getRecordValueClass(record.itemType)}`}
-                >
-                  {formatRecordValue(record)}
-                </p>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  {new Intl.DateTimeFormat('zh-TW', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short',
-                  }).format(new Date(record.recordedAt))}
-                </p>
-                {record.note ? (
-                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                    {record.note}
-                  </p>
-                ) : null}
-              </div>
-              {!compact ? (
-                <div className="flex gap-2 sm:self-start">
-                  <IconButton
-                    label="編輯"
-                    icon={<PencilIcon size={18} />}
-                    onClick={() => populateRecordFormForEdit(record)}
-                  />
-                  <IconButton
-                    label={isDeletingRecord ? '處理中…' : '刪除'}
-                    icon={
-                      isDeletingRecord ? (
-                        <LoaderIcon size={18} />
-                      ) : (
-                        <TrashIcon size={18} />
-                      )
-                    }
-                    variant="danger"
-                    disabled={isDeletingRecord}
-                    onClick={() => deleteRecord(record.id)}
-                  />
-                </div>
-              ) : null}
-            </div>
-          </article>
+            record={record}
+            compact={compact}
+            isDeleting={isDeletingRecord}
+            onEdit={compact ? undefined : populateRecordFormForEdit}
+            onDelete={compact ? undefined : deleteRecord}
+          />
         ))}
-      </div>
+      </RecordList>
     );
   }
 
@@ -1322,18 +1240,11 @@ export function RecordDashboard({
 
       <div className="mt-5">
         {isLoadingTimeline ? (
-          <div className="grid gap-3">
+          <RecordList>
             {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={`timeline-loading-${index}`}
-                className="animate-pulse rounded-2xl border border-[var(--line)] bg-white p-4"
-              >
-                <div className="h-4 w-28 rounded bg-stone-200" />
-                <div className="mt-3 h-10 rounded-2xl bg-stone-100" />
-                <div className="mt-3 h-3 w-36 rounded bg-stone-100" />
-              </div>
+              <RecordCardSkeleton key={`timeline-loading-${index}`} />
             ))}
-          </div>
+          </RecordList>
         ) : records.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
             目前沒有符合條件的紀錄。你可以調整日期條件，或先到「新增紀錄」補一筆資料。
