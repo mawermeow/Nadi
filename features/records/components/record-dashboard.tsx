@@ -62,6 +62,37 @@ const valueTypeOptions = [
   { value: 'text', label: '文字' },
 ] as const;
 
+function getItemTypeTabClass(
+  currentValue: 'metric' | 'symptom',
+  optionValue: 'metric' | 'symptom',
+) {
+  if (currentValue !== optionValue) {
+    return 'border-[var(--line)] bg-white text-[var(--foreground)]';
+  }
+
+  return optionValue === 'symptom'
+    ? 'border-rose-400 bg-rose-500 text-white'
+    : 'border-[var(--accent)] bg-[var(--accent)] text-white';
+}
+
+function getItemTypeBadgeClass(type: 'metric' | 'symptom') {
+  return type === 'symptom'
+    ? 'bg-rose-100 text-rose-700'
+    : 'bg-[var(--accent-soft)] text-[var(--accent)]';
+}
+
+function getRecordCardClass(type: 'metric' | 'symptom') {
+  return type === 'symptom'
+    ? 'border-rose-200 bg-rose-50/40'
+    : 'border-[var(--line)] bg-white';
+}
+
+function getRecordValueClass(type: 'metric' | 'symptom') {
+  return type === 'symptom'
+    ? 'bg-rose-100/80 text-rose-800'
+    : 'bg-[var(--accent-soft)] text-[var(--accent)]';
+}
+
 function formatDateTimeLocal(date = new Date()) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return localDate.toISOString().slice(0, 16);
@@ -433,11 +464,7 @@ export function RecordDashboard({
                         key={option.value}
                         type="button"
                         onClick={() => updateRecordItemTypeTab(option.value)}
-                        className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-                          recordItemTypeTab === option.value
-                            ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                            : 'border-[var(--line)] bg-white text-[var(--foreground)]'
-                        }`}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(recordItemTypeTab, option.value)}`}
                       >
                         {option.label}
                       </button>
@@ -601,11 +628,7 @@ export function RecordDashboard({
                       key={option.value}
                       type="button"
                       onClick={() => updateTimelineItemTypeTab(option.value)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-                        filterState.itemType === option.value
-                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                          : 'border-[var(--line)] bg-white text-[var(--foreground)]'
-                      }`}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(filterState.itemType, option.value)}`}
                     >
                       {option.label}
                     </button>
@@ -696,7 +719,7 @@ export function RecordDashboard({
                 records.map((record) => (
                   <article
                     key={record.id}
-                    className="rounded-2xl border border-[var(--line)] bg-white p-4"
+                    className={`rounded-2xl border p-4 ${getRecordCardClass(record.itemType)}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -704,13 +727,20 @@ export function RecordDashboard({
                           <h3 className="text-base font-semibold">
                             {record.itemTitle}
                           </h3>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getItemTypeBadgeClass(record.itemType)}`}
+                          >
+                            {record.itemType === 'metric' ? '指標' : '症狀'}
+                          </span>
                           {record.itemArchived ? (
                             <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs text-stone-600">
                               已封存項目
                             </span>
                           ) : null}
                         </div>
-                        <p className="mt-2 text-lg font-medium">
+                        <p
+                          className={`mt-3 inline-flex rounded-2xl px-3 py-2 text-lg font-medium ${getRecordValueClass(record.itemType)}`}
+                        >
                           {formatRecordValue(record)}
                         </p>
                         <p className="mt-2 text-sm text-[var(--muted)]">
@@ -779,11 +809,7 @@ export function RecordDashboard({
                       key={option.value}
                       type="button"
                       onClick={() => updateItemFormValue('type', option.value)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-                        itemFormState.type === option.value
-                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                          : 'border-[var(--line)] bg-white text-[var(--foreground)]'
-                      }`}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(itemFormState.type, option.value)}`}
                     >
                       {option.label}
                     </button>
@@ -920,7 +946,9 @@ export function RecordDashboard({
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-semibold">{item.title}</h3>
-                          <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getItemTypeBadgeClass(item.type)}`}
+                          >
                             {item.type === 'metric' ? '指標' : '症狀'}
                           </span>
                         </div>

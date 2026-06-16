@@ -142,7 +142,9 @@ export function SummaryReportSection({
             </article>
             <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
               <p className="text-sm text-[var(--muted)]">症狀項目數</p>
-              <p className="mt-2 text-2xl font-semibold">{report.symptoms.length}</p>
+              <p className="mt-2 text-2xl font-semibold text-rose-700">
+                {report.symptoms.length}
+              </p>
             </article>
             <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
               <p className="text-sm text-[var(--muted)]">統計區間</p>
@@ -222,8 +224,8 @@ export function SummaryReportSection({
 
             <section className="rounded-2xl border border-[var(--line)] bg-white p-4">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold">症狀摘要</h3>
-                <span className="text-sm text-[var(--muted)]">symptom items</span>
+                <h3 className="text-lg font-semibold text-rose-700">症狀摘要</h3>
+                <span className="text-sm text-rose-600">symptom items</span>
               </div>
               <div className="mt-4 grid gap-3">
                 {report.symptoms.length === 0 ? (
@@ -234,7 +236,7 @@ export function SummaryReportSection({
                   report.symptoms.map((symptom) => (
                     <article
                       key={symptom.itemId}
-                      className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
+                      className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -249,7 +251,7 @@ export function SummaryReportSection({
                       </div>
                       <div className="mt-3 h-2 rounded-full bg-stone-200">
                         <div
-                          className="h-2 rounded-full bg-emerald-500"
+                          className="h-2 rounded-full bg-rose-500"
                           style={{
                             width: `${(symptom.occurrenceCount / maxSymptomCount) * 100}%`,
                           }}
