@@ -550,6 +550,17 @@ async function handlePushItemCreate(
   const existingItem = await findSyncItemById(operation.entityId);
 
   if (existingItem) {
+    if (existingItem.userId === user.id && existingItem.deletedAt === null) {
+      return {
+        type: 'accepted' as const,
+        accepted: createAcceptedOperation(
+          operation,
+          existingItem.version,
+          existingItem.updatedAt,
+        ),
+      };
+    }
+
     return {
       type: 'rejected' as const,
       rejected: createRejectedOperation(
@@ -733,6 +744,17 @@ async function handlePushRecordCreate(
   const existingRecord = await findSyncRecordById(operation.entityId);
 
   if (existingRecord) {
+    if (existingRecord.userId === user.id && existingRecord.deletedAt === null) {
+      return {
+        type: 'accepted' as const,
+        accepted: createAcceptedOperation(
+          operation,
+          existingRecord.version,
+          existingRecord.updatedAt,
+        ),
+      };
+    }
+
     return {
       type: 'rejected' as const,
       rejected: createRejectedOperation(

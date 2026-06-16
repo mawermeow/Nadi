@@ -190,6 +190,60 @@ describe('sync service', () => {
     expect(result.accepted[0]?.version).toBe(2);
   });
 
+  it('treats same-user duplicate item create as accepted retry recovery', async () => {
+    vi.mocked(findSyncItemById).mockResolvedValue(baseItem);
+
+    const result = await pushSyncOperationsForUser(user, {
+      deviceId: 'device-a',
+      operations: [
+        {
+          operationId: 'op-item-duplicate',
+          entityType: 'item',
+          operationType: 'create',
+          entityId: baseItem.id,
+          payload: {
+            title: '睡眠',
+            type: 'metric',
+            valueType: 'number',
+            unit: '小時',
+          },
+          clientCreatedAt: '2026-06-16T00:00:00.000Z',
+          clientUpdatedAt: '2026-06-16T00:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.accepted).toHaveLength(1);
+    expect(result.rejected).toHaveLength(0);
+  });
+
+  it('treats same-user duplicate record create as accepted retry recovery', async () => {
+    vi.mocked(findSyncRecordById).mockResolvedValue(baseRecord);
+
+    const result = await pushSyncOperationsForUser(user, {
+      deviceId: 'device-a',
+      operations: [
+        {
+          operationId: 'op-record-duplicate',
+          entityType: 'record',
+          operationType: 'create',
+          entityId: baseRecord.id,
+          payload: {
+            itemId: baseRecord.itemId,
+            value: 6.5,
+            recordedAt: '2026-06-16T00:00:00.000Z',
+            note: '晚餐後',
+          },
+          clientCreatedAt: '2026-06-16T00:00:00.000Z',
+          clientUpdatedAt: '2026-06-16T00:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.accepted).toHaveLength(1);
+    expect(result.rejected).toHaveLength(0);
+  });
+
   it('detects update version conflict', async () => {
     vi.mocked(findSyncRecordByIdForUser).mockResolvedValue({
       ...baseRecord,

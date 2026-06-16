@@ -2,7 +2,13 @@ import type { ItemResponse } from '@/features/items/api';
 import { itemLocalRepository } from '@/features/items/local-repository';
 import type { RecordResponse } from '@/features/records/api';
 import { recordLocalRepository } from '@/features/records/local-repository';
-import type { LocalItem, LocalRecord, SyncStatus } from '@/lib/local-db/types';
+import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import type {
+  LocalItem,
+  LocalRecord,
+  LocalSyncOperation,
+  SyncStatus,
+} from '@/lib/local-db/types';
 
 type LocalRecordQuery = {
   itemId?: string;
@@ -15,6 +21,18 @@ type LocalRecordQuery = {
 export type SyncStatusPresentation = {
   label: string;
   className: string;
+};
+
+export type SyncOperationIssue = {
+  operationId: string;
+  entityType: 'item' | 'record';
+  operationType: 'create' | 'update' | 'delete';
+  entityId: string;
+  status: 'failed' | 'conflict';
+  statusLabel: string;
+  title: string;
+  updatedAt: string;
+  lastError: string | null;
 };
 
 export function getSyncStatusPresentation(
@@ -54,6 +72,42 @@ export function mapLocalItemToItemResponse(item: LocalItem): ItemResponse {
     syncStatus: item.syncStatus,
     version: item.version,
     createdAt: item.createdAt,
+  };
+}
+
+function getSyncOperationStatusLabel(status: LocalSyncOperation['status']) {
+  return status === 'conflict' ? '同步衝突' : '同步失敗';
+}
+
+function getSyncOperationTitle(operation: LocalSyncOperation) {
+  const entityLabel = operation.entityType === 'item' ? '項目' : '紀錄';
+  const operationLabel =
+    operation.operationType === 'create'
+      ? '新增'
+      : operation.operationType === 'update'
+        ? '更新'
+        : '刪除';
+
+  return `${entityLabel}${operationLabel}`;
+}
+
+function mapSyncOperationIssue(
+  operation: LocalSyncOperation,
+): SyncOperationIssue | null {
+  if (operation.status !== 'failed' && operation.status !== 'conflict') {
+    return null;
+  }
+
+  return {
+    operationId: operation.operationId,
+    entityType: operation.entityType,
+    operationType: operation.operationType,
+    entityId: operation.entityId,
+    status: operation.status,
+    statusLabel: getSyncOperationStatusLabel(operation.status),
+    title: getSyncOperationTitle(operation),
+    updatedAt: operation.updatedAt,
+    lastError: operation.lastError,
   };
 }
 
@@ -236,4 +290,14 @@ export async function loadLocalRecords(query: LocalRecordQuery = {}) {
   return limitedRecords.map((record) =>
     mapLocalRecordToRecordResponse(record, itemMap.get(record.itemId)!),
   );
+}
+
+export async function loadSyncOperationIssues(limit = 8) {
+  const operations = await syncOperationRepository.getAll();
+
+  return operations
+    .map(mapSyncOperationIssue)
+    .filter((value): value is SyncOperationIssue => value !== null)
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, limit);
 }

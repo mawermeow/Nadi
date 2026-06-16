@@ -127,6 +127,56 @@ const pendingOperation = {
   lastError: null,
 };
 
+const pendingItemCreateOperation = {
+  id: 'op-item-create',
+  operationId: 'op-item-create',
+  entityType: 'item' as const,
+  operationType: 'create' as const,
+  entityId: '11111111-1111-4111-8111-111111111111',
+  baseVersion: null,
+  payload: {
+    title: '睡眠',
+    type: 'metric',
+    valueType: 'number',
+    unit: '小時',
+  },
+  status: 'pending' as const,
+  syncStatus: 'pending' as const,
+  createdAt: '2026-06-16T00:00:00.000Z',
+  updatedAt: '2026-06-16T00:00:00.000Z',
+  deletedAt: null,
+  version: 1,
+  lastSyncedAt: null,
+  deviceId: 'device-local',
+  retryCount: 0,
+  lastError: null,
+};
+
+const pendingRecordCreateOperation = {
+  id: 'op-record-create',
+  operationId: 'op-record-create',
+  entityType: 'record' as const,
+  operationType: 'create' as const,
+  entityId: '11111111-1111-4111-8111-111111111118',
+  baseVersion: null,
+  payload: {
+    itemId: '11111111-1111-4111-8111-111111111111',
+    value: 6.5,
+    recordedAt: '2026-06-16T08:00:00.000Z',
+    note: '起床後',
+  },
+  status: 'pending' as const,
+  syncStatus: 'pending' as const,
+  createdAt: '2026-06-16T00:00:00.000Z',
+  updatedAt: '2026-06-16T00:00:00.000Z',
+  deletedAt: null,
+  version: 1,
+  lastSyncedAt: null,
+  deviceId: 'device-local',
+  retryCount: 0,
+  lastError: null,
+};
+
 describe('client sync service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -224,6 +274,59 @@ describe('client sync service', () => {
         lastSyncedAt: '2026-06-16T02:00:00.000Z',
       },
     );
+  });
+
+  it('pushes item create before dependent record create when timestamps tie', async () => {
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      pendingRecordCreateOperation,
+      pendingItemCreateOperation,
+    ]);
+    vi.mocked(pushSyncOperations).mockResolvedValue({
+      accepted: [],
+      rejected: [],
+      conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
+      serverTime: '2026-06-16T02:00:00.000Z',
+    });
+
+    await pushPendingOperations();
+
+    expect(pushSyncOperations).toHaveBeenCalledWith({
+      deviceId: 'device-local',
+      operations: [
+        expect.objectContaining({
+          operationId: 'op-item-create',
+          entityType: 'item',
+          operationType: 'create',
+        }),
+        expect.objectContaining({
+          operationId: 'op-record-create',
+          entityType: 'record',
+          operationType: 'create',
+        }),
+      ],
+    });
   });
 
   it('skips cloud sync in anonymous local mode', async () => {

@@ -316,6 +316,41 @@ function toSyncOperationInput(operation: LocalSyncOperation) {
   };
 }
 
+function getSyncOperationPriority(operation: LocalSyncOperation) {
+  if (operation.entityType === 'item' && operation.operationType === 'create') {
+    return 0;
+  }
+
+  if (operation.entityType === 'item') {
+    return 1;
+  }
+
+  if (operation.entityType === 'record' && operation.operationType === 'create') {
+    return 2;
+  }
+
+  return 3;
+}
+
+function sortOperationsForPush(operations: LocalSyncOperation[]) {
+  return [...operations].sort((left, right) => {
+    const createdAtCompare = left.createdAt.localeCompare(right.createdAt);
+
+    if (createdAtCompare !== 0) {
+      return createdAtCompare;
+    }
+
+    const priorityCompare =
+      getSyncOperationPriority(left) - getSyncOperationPriority(right);
+
+    if (priorityCompare !== 0) {
+      return priorityCompare;
+    }
+
+    return left.operationId.localeCompare(right.operationId);
+  });
+}
+
 let runningSyncPromise: Promise<void> | null = null;
 
 export async function pushPendingOperations() {
@@ -332,8 +367,11 @@ export async function pushPendingOperations() {
 
   const deviceId = await getOrCreateDeviceId();
   const allOperations = await syncOperationRepository.getAll();
-  const operationsToPush = allOperations.filter(
-    (operation) => operation.status === 'pending' || operation.status === 'failed',
+  const operationsToPush = sortOperationsForPush(
+    allOperations.filter(
+      (operation) =>
+        operation.status === 'pending' || operation.status === 'failed',
+    ),
   );
 
   setSyncState({

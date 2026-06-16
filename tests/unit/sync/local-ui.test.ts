@@ -14,13 +14,21 @@ vi.mock('@/features/records/local-repository', () => ({
   },
 }));
 
+vi.mock('@/features/sync/local-operation-repository', () => ({
+  syncOperationRepository: {
+    getAll: vi.fn(),
+  },
+}));
+
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
+import { syncOperationRepository } from '@/features/sync/local-operation-repository';
 import {
   getSyncStatusPresentation,
   hydrateLocalStoreFromServerSnapshot,
   loadLocalItems,
   loadLocalRecords,
+  loadSyncOperationIssues,
 } from '@/features/sync/local-ui';
 
 describe('local ui helpers', () => {
@@ -177,5 +185,75 @@ describe('local ui helpers', () => {
     expect(getSyncStatusPresentation('failed')?.label).toBe('同步失敗');
     expect(getSyncStatusPresentation('conflict')?.label).toBe('同步衝突');
     expect(getSyncStatusPresentation('synced')).toBeNull();
+  });
+
+  it('loads readable failed and conflict sync issues', async () => {
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      {
+        id: 'op-1',
+        operationId: 'op-1',
+        entityType: 'record',
+        operationType: 'create',
+        entityId: 'record-1',
+        baseVersion: null,
+        payload: {},
+        status: 'failed',
+        syncStatus: 'failed',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T09:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 1,
+        lastError: 'ENTITY_NOT_FOUND: 找不到對應的項目',
+      },
+      {
+        id: 'op-2',
+        operationId: 'op-2',
+        entityType: 'item',
+        operationType: 'update',
+        entityId: 'item-1',
+        baseVersion: 1,
+        payload: {},
+        status: 'conflict',
+        syncStatus: 'conflict',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T10:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 0,
+        lastError: 'version conflict (1 -> 2)',
+      },
+      {
+        id: 'op-3',
+        operationId: 'op-3',
+        entityType: 'item',
+        operationType: 'create',
+        entityId: 'item-2',
+        baseVersion: null,
+        payload: {},
+        status: 'synced',
+        syncStatus: 'synced',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T11:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: '2026-06-16T11:00:00.000Z',
+        deviceId: 'device-local',
+        retryCount: 0,
+        lastError: null,
+      },
+    ]);
+
+    const issues = await loadSyncOperationIssues();
+
+    expect(issues).toHaveLength(2);
+    expect(issues[0]?.title).toBe('項目更新');
+    expect(issues[0]?.statusLabel).toBe('同步衝突');
+    expect(issues[1]?.title).toBe('紀錄新增');
+    expect(issues[1]?.lastError).toContain('ENTITY_NOT_FOUND');
   });
 });

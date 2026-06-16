@@ -58,8 +58,10 @@ import {
   hydrateLocalStoreFromServerSnapshot,
   loadLocalItems,
   loadLocalRecords,
+  loadSyncOperationIssues,
   mapLocalItemToItemResponse,
   mapLocalRecordToRecordResponse,
+  type SyncOperationIssue,
 } from '@/features/sync/local-ui';
 import {
   hydrateSyncTelemetryState,
@@ -307,6 +309,7 @@ export function RecordDashboard({
   const [isDeletingRecord, startDeleteTransition] = useTransition();
   const [syncState, setSyncState] = useState<SyncState>(getSyncState());
   const [isHydratingLocal, setIsHydratingLocal] = useState(true);
+  const [syncIssues, setSyncIssues] = useState<SyncOperationIssue[]>([]);
 
   const activeItems = useMemo(
     () => items.filter((item) => !item.archived),
@@ -410,6 +413,11 @@ export function RecordDashboard({
     },
     [filterState.from, filterState.itemId, filterState.itemType, filterState.to, recordItemTypeTab],
   );
+
+  const loadSyncIssues = useCallback(async () => {
+    const issues = await loadSyncOperationIssues();
+    setSyncIssues(issues);
+  }, []);
 
   function navigateToTab(tabId: string, options?: { forceScroll?: boolean }) {
     const nextTab = appTabs.find((tab) => tab.id === tabId)?.id;
@@ -515,6 +523,7 @@ export function RecordDashboard({
 
     async function initializeLocalFirstUi() {
       await hydrateSyncTelemetryState();
+      await loadSyncIssues();
       await hydrateLocalStoreFromServerSnapshot({
         items: initialItems,
         records: initialRecords,
@@ -544,6 +553,7 @@ export function RecordDashboard({
 
     const unsubscribe = subscribeSyncState((nextState) => {
       setSyncState(nextState);
+      void loadSyncIssues();
 
       if (nextState.lastSyncAt) {
         void loadLocalData({
@@ -557,7 +567,7 @@ export function RecordDashboard({
       unsubscribe();
       stopForegroundSync();
     };
-  }, [initialItems, initialRecords, loadLocalData]);
+  }, [initialItems, initialRecords, loadLocalData, loadSyncIssues]);
 
   async function handleCreateItem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1534,6 +1544,42 @@ export function RecordDashboard({
                   lastError: syncState.lastError,
                 })}
               </p>
+              <div className="mt-4 grid gap-3">
+                {syncIssues.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-4 text-sm leading-6 text-[var(--muted)]">
+                    目前沒有需要人工確認的同步失敗或衝突。
+                  </div>
+                ) : (
+                  syncIssues.map((issue) => (
+                    <article
+                      key={issue.operationId}
+                      className="rounded-2xl border border-[var(--line)] bg-white p-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={
+                            issue.status === 'conflict'
+                              ? 'rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800'
+                              : 'rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-800'
+                          }
+                        >
+                          {issue.statusLabel}
+                        </span>
+                        <p className="text-sm font-medium">{issue.title}</p>
+                      </div>
+                      <p className="mt-2 text-sm text-[var(--muted)]">
+                        實體 ID：{issue.entityId}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--foreground)]">
+                        原因：{issue.lastError ?? '未提供詳細原因'}
+                      </p>
+                      <p className="mt-1 text-xs text-[var(--muted)]">
+                        最近更新：{formatSyncTimestamp(issue.updatedAt)}
+                      </p>
+                    </article>
+                  ))
+                )}
+              </div>
             </section>
           }
         />
