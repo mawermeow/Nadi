@@ -1191,7 +1191,7 @@ export function RecordDashboard({
         <div>
           <h2 className="text-xl font-semibold">紀錄列表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            {sectionCopy.records.page}
+            {sectionCopy.records.list}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-3 text-sm text-[var(--muted)]">
