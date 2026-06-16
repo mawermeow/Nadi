@@ -79,3 +79,24 @@ This table is schema-only in Phase 1. No report endpoints or calculation flow ar
 - `records_user_item_recorded_at_idx`
 - `records_item_recorded_at_idx`
 - `report_snapshots_user_range_idx`
+
+## Planned Offline-first Additions
+
+目前正式 schema 尚未加入 sync metadata，但未來 offline-first sync 方向建議為 `items` 與 `records` 補上以下欄位：
+
+| Column | Type | Purpose |
+| --- | --- | --- |
+| `sync_status` | enum / text | `pending` / `synced` / `conflict` / `failed` |
+| `version` | integer | optimistic concurrency control |
+| `deleted_at` | `timestamptz` | soft delete tombstone |
+| `last_synced_at` | `timestamptz` | 最近一次成功同步時間 |
+| `device_id` | `uuid` or `text` | 最後修改來源裝置 |
+
+設計原則：
+
+- `archived` 與 `deleted_at` 不同
+- `archived` 是產品層停用狀態
+- `deleted_at` 是同步層 soft delete 狀態
+- `report_snapshots` 暫不列為第一波 sync 對象
+
+這些欄位目前還未實作，也尚未進行 migration。詳細設計請見 [offline-sync-design.md](/Users/mawer/WebstormProjects/Nadi/docs/offline-sync-design.md)。

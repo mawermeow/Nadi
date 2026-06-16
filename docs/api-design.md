@@ -23,6 +23,24 @@ Phase 5 implements the Item, Record, Summary Report, and Correlation Report APIs
 
 AI insights remain outside the current MVP scope.
 
+## Planned Offline-first Sync Direction
+
+目前正式 API 仍是 online-first CRUD。未來會以 additive 方式補上 sync-aware contract，而不是直接移除既有 endpoint。
+
+預計調整方向：
+
+- create / update mutation 可接受 client 先產生的 UUID
+- mutation request 補 `version` 與 `deviceId`
+- records delete 語意改為 soft delete
+- 新增 sync API，回傳 `accepted` / `rejected` / `conflicts` / `latestChanges`
+
+建議中的 sync endpoints：
+
+- `POST /v1/sync/push`
+- `POST /v1/sync/pull`
+
+目前這些端點尚未實作。詳細設計請見 [offline-sync-design.md](/Users/mawer/WebstormProjects/Nadi/docs/offline-sync-design.md)。
+
 ## Item API
 
 ### `GET /v1/items`
