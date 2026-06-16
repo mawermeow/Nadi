@@ -67,6 +67,13 @@ const valueTypeOptions = [
   { value: 'scale', label: '量表' },
   { value: 'text', label: '文字' },
 ] as const;
+const quickNavItems = [
+  { href: '#record-create', label: '新增紀錄' },
+  { href: '#timeline', label: '近期紀錄' },
+  { href: '#item-manage', label: '項目管理' },
+  { href: '#summary-report', label: '摘要' },
+  { href: '#correlation-report', label: '關聯' },
+] as const;
 
 function getValueTypeLabel(valueType: ItemFormState['valueType']) {
   return (
@@ -487,26 +494,25 @@ export function RecordDashboard({
           </div>
         </section>
 
-        <SummaryReportSection
-          initialReport={initialSummaryReport}
-          maxRangeDays={maxReportRangeDays}
-        />
-
-        <CorrelationReportSection
-          initialReport={{
-            ...initialCorrelationReport,
-            windowHours:
-              initialCorrelationReport.windowHours ||
-              defaultCorrelationWindowHours,
-          }}
-          maxRangeDays={maxReportRangeDays}
-          symptomItems={symptomItems}
-        />
+        <nav className="sticky top-3 z-20 -mx-1 overflow-x-auto px-1">
+          <div className="flex min-w-max gap-2 rounded-[1.5rem] border border-[var(--line)] bg-white/85 p-2 shadow-[0_10px_30px_rgba(31,42,42,0.08)] backdrop-blur">
+            {quickNavItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-sm font-medium whitespace-nowrap text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        </nav>
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <form
+            id="record-create"
             onSubmit={handleCreateRecord}
-            className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6"
+            className="scroll-mt-28 rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:scroll-mt-32 sm:p-6"
           >
             <div>
               <h2 className="text-xl font-semibold">新增紀錄</h2>
@@ -701,7 +707,10 @@ export function RecordDashboard({
             ) : null}
           </form>
 
-          <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
+          <section
+            id="timeline"
+            className="scroll-mt-28 rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:scroll-mt-32 sm:p-6"
+          >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">近期紀錄</h2>
@@ -883,7 +892,10 @@ export function RecordDashboard({
           </section>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section
+          id="item-manage"
+          className="scroll-mt-28 grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:scroll-mt-32"
+        >
           <form
             onSubmit={handleCreateItem}
             className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6"
@@ -1138,6 +1150,26 @@ export function RecordDashboard({
             ) : null}
           </section>
         </section>
+
+        <div id="summary-report" className="scroll-mt-28 sm:scroll-mt-32">
+          <SummaryReportSection
+            initialReport={initialSummaryReport}
+            maxRangeDays={maxReportRangeDays}
+          />
+        </div>
+
+        <div id="correlation-report" className="scroll-mt-28 sm:scroll-mt-32">
+          <CorrelationReportSection
+            initialReport={{
+              ...initialCorrelationReport,
+              windowHours:
+                initialCorrelationReport.windowHours ||
+                defaultCorrelationWindowHours,
+            }}
+            maxRangeDays={maxReportRangeDays}
+            symptomItems={symptomItems}
+          />
+        </div>
       </div>
     </main>
   );
