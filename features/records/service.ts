@@ -19,9 +19,10 @@ import {
 } from './schema';
 import {
   createRecordRecord,
-  deleteRecordByIdForUser,
+  findRecordById,
   findRecordByIdForUser,
   listRecordsByUserId,
+  softDeleteRecordByIdForUser,
   updateRecordByIdForUser,
 } from './repository';
 import type { RecordResponse } from './api';
@@ -134,6 +135,7 @@ function toRecordResponse(record: Awaited<ReturnType<typeof listRecordsByUserId>
     recordedAt: record.recordedAt.toISOString(),
     note: record.note ?? undefined,
     itemArchived: record.itemArchived,
+    version: record.version,
     createdAt: record.createdAt.toISOString(),
   };
 }
@@ -184,9 +186,15 @@ export async function createRecordForUser(
 
   const validatedInput = createRecordSchema.parse(input);
   const item = await findItemByIdForUser(validatedInput.itemId, user.id);
+  const nextId = validatedInput.id ?? randomUUID();
+  const existingRecord = await findRecordById(nextId);
+
+  if (existingRecord) {
+    throw new AppError('這個 id 已存在', 409, 'RECORD_ID_CONFLICT');
+  }
   const recordValue = validateRecordValue(item, validatedInput.value);
   const record = await createRecordRecord({
-    id: randomUUID(),
+    id: nextId,
     userId: user.id,
     itemId: validatedInput.itemId,
     recordedAt: new Date(validatedInput.recordedAt),
@@ -219,7 +227,10 @@ export async function deleteRecordForUser(user: SessionUser, recordId: string) {
     throw new AppError('找不到這筆紀錄', 404, 'RECORD_NOT_FOUND');
   }
 
-  await deleteRecordByIdForUser(validatedRecordId, user.id);
+  await softDeleteRecordByIdForUser(validatedRecordId, user.id, {
+    deletedAt: new Date(),
+    version: existingRecord.version + 1,
+  });
 }
 
 export async function updateRecordForUser(
@@ -235,6 +246,21 @@ export async function updateRecordForUser(
 
   if (!existingRecord) {
     throw new AppError('找不到這筆紀錄', 404, 'RECORD_NOT_FOUND');
+  }
+
+  if (
+    validatedInput.version !== undefined &&
+    validatedInput.version !== existingRecord.version
+  ) {
+    throw new AppError(
+      '紀錄版本不一致，請重新整理後再試一次',
+      409,
+      'RECORD_VERSION_CONFLICT',
+      {
+        currentVersion: existingRecord.version,
+        requestedVersion: validatedInput.version,
+      },
+    );
   }
 
   const itemId = validatedInput.itemId ?? existingRecord.itemId;
@@ -256,6 +282,7 @@ export async function updateRecordForUser(
     note:
       validatedInput.note === undefined ? existingRecord.note : validatedInput.note,
     ...valueFields,
+    version: existingRecord.version + 1,
   });
 
   if (!updatedRecord) {

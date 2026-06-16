@@ -13,6 +13,7 @@ import {
 } from './schema';
 import {
   createItemRecord,
+  findItemById,
   findItemByIdForUser,
   listItemsByUserId,
   updateItemRecord,
@@ -63,9 +64,15 @@ export async function createItemForUser(user: SessionUser, input: CreateItemInpu
   await ensureSessionUserRecord(user);
 
   const validatedInput = createItemSchema.parse(input);
+  const nextId = validatedInput.id ?? randomUUID();
+  const existingItem = await findItemById(nextId);
+
+  if (existingItem) {
+    throw new AppError('這個 id 已存在', 409, 'ITEM_ID_CONFLICT');
+  }
 
   return createItemRecord({
-    id: randomUUID(),
+    id: nextId,
     userId: user.id,
     title: validatedInput.title,
     type: validatedInput.type,
@@ -107,6 +114,16 @@ export async function updateItemForUser(
     nextScaleMax ?? null,
   );
 
+  if (
+    validatedInput.version !== undefined &&
+    validatedInput.version !== existingItem.version
+  ) {
+    throw new AppError('項目版本不一致，請重新整理後再試一次', 409, 'ITEM_VERSION_CONFLICT', {
+      currentVersion: existingItem.version,
+      requestedVersion: validatedInput.version,
+    });
+  }
+
   return updateItemRecord(existingItem.id, user.id, {
     title: validatedInput.title ?? existingItem.title,
     unit:
@@ -116,5 +133,22 @@ export async function updateItemForUser(
     archived: validatedInput.archived ?? existingItem.archived,
     scaleMin: nextScaleMin,
     scaleMax: nextScaleMax,
+    version: existingItem.version + 1,
+  });
+}
+
+export async function deleteItemForUser(user: SessionUser, itemId: string) {
+  await ensureSessionUserRecord(user);
+
+  const validatedItemId = itemIdParamSchema.parse(itemId);
+  const existingItem = await findItemByIdForUser(validatedItemId, user.id);
+
+  if (!existingItem) {
+    throw new AppError('找不到這個項目', 404, 'ITEM_NOT_FOUND');
+  }
+
+  await updateItemRecord(existingItem.id, user.id, {
+    deletedAt: new Date(),
+    version: existingItem.version + 1,
   });
 }

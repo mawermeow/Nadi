@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 
 import { items } from '@/db/schema';
 import { getDb } from '@/lib/db/client';
@@ -14,8 +14,12 @@ export async function listItemsByUserId(
 
   return db.query.items.findMany({
     where: includeArchived
-      ? eq(items.userId, userId)
-      : and(eq(items.userId, userId), eq(items.archived, false)),
+      ? and(eq(items.userId, userId), isNull(items.deletedAt))
+      : and(
+          eq(items.userId, userId),
+          eq(items.archived, false),
+          isNull(items.deletedAt),
+        ),
     orderBy: [desc(items.createdAt)],
   });
 }
@@ -29,7 +33,18 @@ export async function createItemRecord(input: typeof items.$inferInsert) {
 export async function findItemByIdForUser(itemId: string, userId: string) {
   const db = getDb();
   return db.query.items.findFirst({
-    where: and(eq(items.id, itemId), eq(items.userId, userId)),
+    where: and(
+      eq(items.id, itemId),
+      eq(items.userId, userId),
+      isNull(items.deletedAt),
+    ),
+  });
+}
+
+export async function findItemById(itemId: string) {
+  const db = getDb();
+  return db.query.items.findFirst({
+    where: eq(items.id, itemId),
   });
 }
 
@@ -45,7 +60,7 @@ export async function updateItemRecord(
       ...input,
       updatedAt: new Date(),
     })
-    .where(and(eq(items.id, itemId), eq(items.userId, userId)))
+    .where(and(eq(items.id, itemId), eq(items.userId, userId), isNull(items.deletedAt)))
     .returning();
 
   return item ?? null;

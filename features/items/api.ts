@@ -9,6 +9,7 @@ export type ItemResponse = {
   scaleMin?: number;
   scaleMax?: number;
   archived: boolean;
+  version: number;
   createdAt: string;
 };
 
@@ -22,6 +23,7 @@ export function toItemResponse(item: Item): ItemResponse {
     scaleMin: item.scaleMin ?? undefined,
     scaleMax: item.scaleMax ?? undefined,
     archived: item.archived,
+    version: item.version,
     createdAt: item.createdAt.toISOString(),
   };
 }

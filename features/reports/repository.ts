@@ -1,4 +1,4 @@
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, isNull, lte } from 'drizzle-orm';
 
 import { items, records } from '@/db/schema';
 import { getDb } from '@/lib/db/client';
@@ -43,6 +43,8 @@ export async function listReportRecordsByUserId(
     .where(
       and(
         eq(records.userId, userId),
+        isNull(records.deletedAt),
+        isNull(items.deletedAt),
         gte(records.recordedAt, range.from),
         lte(records.recordedAt, range.to),
       ),

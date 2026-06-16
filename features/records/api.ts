@@ -9,5 +9,6 @@ export type RecordResponse = {
   recordedAt: string;
   note?: string;
   itemArchived: boolean;
+  version: number;
   createdAt: string;
 };

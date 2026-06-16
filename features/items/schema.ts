@@ -57,6 +57,7 @@ export const listItemsQuerySchema = z.object({
 
 export const createItemSchema = z
   .object({
+    id: z.uuid('無效的 id').optional(),
     title: z
       .string()
       .trim()
@@ -112,6 +113,7 @@ export const createItemSchema = z
 
 export const updateItemSchema = z
   .object({
+    version: z.coerce.number().int().positive('version 必須是正整數').optional(),
     title: z
       .string()
       .trim()
@@ -123,9 +125,17 @@ export const updateItemSchema = z
     scaleMin: nullableOptionalIntegerSchema,
     scaleMax: nullableOptionalIntegerSchema,
   })
-  .refine((value) => Object.keys(value).length > 0, {
-    message: '至少需要更新一個欄位',
-  });
+  .refine(
+    (value) =>
+      value.title !== undefined ||
+      value.unit !== undefined ||
+      value.archived !== undefined ||
+      value.scaleMin !== undefined ||
+      value.scaleMax !== undefined,
+    {
+      message: '至少需要更新一個欄位',
+    },
+  );
 
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;

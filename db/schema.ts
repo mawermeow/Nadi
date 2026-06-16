@@ -30,6 +30,12 @@ export const itemValueTypeEnum = pgEnum('item_value_type', [
   'scale',
   'text',
 ]);
+export const syncStatusEnum = pgEnum('sync_status', [
+  'pending',
+  'synced',
+  'conflict',
+  'failed',
+]);
 export const reportTypeEnum = pgEnum('report_type', [
   'summary',
   'correlation',
@@ -61,6 +67,11 @@ export const items = pgTable(
     scaleMin: integer('scale_min'),
     scaleMax: integer('scale_max'),
     archived: boolean('archived').notNull().default(false),
+    syncStatus: syncStatusEnum('sync_status').notNull().default('synced'),
+    version: integer('version').notNull().default(1),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    deviceId: text('device_id'),
     ...timestamps,
   },
   (table) => [
@@ -76,6 +87,11 @@ export const items = pgTable(
     index('items_user_id_idx').on(table.userId),
     index('items_user_type_idx').on(table.userId, table.type),
     index('items_user_archived_idx').on(table.userId, table.archived),
+    index('items_user_sync_status_idx').on(table.userId, table.syncStatus),
+    index('items_user_updated_at_idx').on(table.userId, table.updatedAt),
+    index('items_user_deleted_at_idx').on(table.userId, table.deletedAt),
+    index('items_user_device_id_idx').on(table.userId, table.deviceId),
+    index('items_user_version_idx').on(table.userId, table.version),
   ],
 );
 
@@ -94,6 +110,11 @@ export const records = pgTable(
     valueBoolean: boolean('value_boolean'),
     recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
     note: text('note'),
+    syncStatus: syncStatusEnum('sync_status').notNull().default('synced'),
+    version: integer('version').notNull().default(1),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    deviceId: text('device_id'),
     ...timestamps,
   },
   (table) => [
@@ -116,6 +137,11 @@ export const records = pgTable(
       table.recordedAt,
     ),
     index('records_item_recorded_at_idx').on(table.itemId, table.recordedAt),
+    index('records_user_sync_status_idx').on(table.userId, table.syncStatus),
+    index('records_user_updated_at_idx').on(table.userId, table.updatedAt),
+    index('records_user_deleted_at_idx').on(table.userId, table.deletedAt),
+    index('records_user_device_id_idx').on(table.userId, table.deviceId),
+    index('records_user_version_idx').on(table.userId, table.version),
   ],
 );
 

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lte } from 'drizzle-orm';
 
 import { items, records } from '@/db/schema';
 import { getDb } from '@/lib/db/client';
@@ -30,7 +30,9 @@ export async function updateRecordByIdForUser(
       ...input,
       updatedAt: new Date(),
     })
-    .where(and(eq(records.id, recordId), eq(records.userId, userId)))
+    .where(
+      and(eq(records.id, recordId), eq(records.userId, userId), isNull(records.deletedAt)),
+    )
     .returning();
 
   return record ?? null;
@@ -41,7 +43,11 @@ export async function listRecordsByUserId(
   options: ListRecordsOptions = {},
 ) {
   const db = getDb();
-  const conditions = [eq(records.userId, userId)];
+  const conditions = [
+    eq(records.userId, userId),
+    isNull(records.deletedAt),
+    isNull(items.deletedAt),
+  ];
 
   if (options.itemId) {
     conditions.push(eq(records.itemId, options.itemId));
@@ -75,6 +81,7 @@ export async function listRecordsByUserId(
       unit: items.unit,
       recordedAt: records.recordedAt,
       note: records.note,
+      version: records.version,
       createdAt: records.createdAt,
     })
     .from(records)
@@ -90,18 +97,43 @@ export async function findRecordByIdForUser(recordId: string, userId: string) {
   const [record] = await db
     .select()
     .from(records)
-    .where(and(eq(records.id, recordId), eq(records.userId, userId)))
+    .where(
+      and(eq(records.id, recordId), eq(records.userId, userId), isNull(records.deletedAt)),
+    )
     .limit(1);
 
   return record ?? null;
 }
 
-export async function deleteRecordByIdForUser(recordId: string, userId: string) {
+export async function findRecordById(recordId: string) {
+  const db = getDb();
+
+  const [record] = await db
+    .select()
+    .from(records)
+    .where(eq(records.id, recordId))
+    .limit(1);
+
+  return record ?? null;
+}
+
+export async function softDeleteRecordByIdForUser(
+  recordId: string,
+  userId: string,
+  input: Pick<typeof records.$inferInsert, 'deletedAt' | 'version'>,
+) {
   const db = getDb();
 
   const [deletedRecord] = await db
-    .delete(records)
-    .where(and(eq(records.id, recordId), eq(records.userId, userId)))
+    .update(records)
+    .set({
+      deletedAt: input.deletedAt,
+      version: input.version,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(records.id, recordId), eq(records.userId, userId), isNull(records.deletedAt)),
+    )
     .returning();
 
   return deletedRecord ?? null;

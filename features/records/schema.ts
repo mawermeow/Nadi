@@ -27,6 +27,7 @@ export const recordValueSchema = z.union([
 ]);
 
 export const createRecordSchema = z.object({
+  id: z.uuid('無效的 id').optional(),
   itemId: itemIdParamSchema,
   value: recordValueSchema,
   recordedAt: isoDateStringSchema,
@@ -35,6 +36,7 @@ export const createRecordSchema = z.object({
 
 export const updateRecordSchema = z
   .object({
+    version: z.coerce.number().int().positive('version 必須是正整數').optional(),
     itemId: itemIdParamSchema.optional(),
     value: recordValueSchema.optional(),
     recordedAt: isoDateStringSchema.optional(),
