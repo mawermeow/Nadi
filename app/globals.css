@@ -19,10 +19,6 @@ html {
 
 body {
   min-height: 100%;
-  background-color: var(--page-top);
-  background-image:
-    radial-gradient(circle at top right, rgba(45, 106, 90, 0.12), transparent 28%),
-    linear-gradient(180deg, var(--page-top) 0%, #f0eadf 100%);
   color: var(--foreground);
   font-family: "Avenir Next", "Segoe UI", sans-serif;
   -webkit-tap-highlight-color: transparent;
