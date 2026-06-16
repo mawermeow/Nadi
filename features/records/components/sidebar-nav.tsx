@@ -2,6 +2,10 @@
 
 import type { AppTabItem } from '@/features/records/components/bottom-tab-nav';
 import { AppTabIcon } from '@/components/ui/icons';
+import {
+  formatSyncQueueSummary,
+  sectionCopy,
+} from '@/lib/ui/section-copy';
 
 type SidebarNavProps = {
   activeTab: string;
@@ -32,7 +36,7 @@ export function SidebarNav({
           Observe yourself
         </h1>
         <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-          以工具型 App 的節奏整理日常訊號，先記錄，再回頭閱讀。
+          {sectionCopy.appTagline}
         </p>
       </div>
 
@@ -65,7 +69,7 @@ export function SidebarNav({
           </p>
           <p className="mt-2 text-sm font-medium">{syncSummary.statusLabel}</p>
           <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-            pending {syncSummary.pendingCount} / failed {syncSummary.failedCount} / conflict {syncSummary.conflictCount}
+            {formatSyncQueueSummary(syncSummary)}
           </p>
           <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
             上次同步：{syncSummary.lastSyncAt}

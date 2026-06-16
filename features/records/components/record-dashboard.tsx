@@ -31,6 +31,10 @@ import {
 import { Select } from '@/components/forms/select';
 import { TextInput } from '@/components/forms/text-input';
 import { Textarea } from '@/components/forms/textarea';
+import {
+  formatSyncIssueSummary,
+  sectionCopy,
+} from '@/lib/ui/section-copy';
 import type { ItemResponse } from '@/features/items/api';
 import type { RecordResponse } from '@/features/records/api';
 import type {
@@ -210,6 +214,21 @@ function getSummaryViewTitle(tabId: (typeof appTabs)[number]['id']) {
       return '報表';
     case 'settings':
       return '設定';
+  }
+}
+
+function getSummaryViewDescription(tabId: (typeof appTabs)[number]['id']) {
+  switch (tabId) {
+    case 'dashboard':
+      return sectionCopy.dashboard.hero;
+    case 'create':
+      return sectionCopy.create.page;
+    case 'records':
+      return sectionCopy.records.page;
+    case 'reports':
+      return sectionCopy.reports.page;
+    case 'settings':
+      return sectionCopy.settings.page;
   }
 }
 
@@ -696,7 +715,7 @@ export function RecordDashboard({
 
         setItemNotice(
           archived
-            ? `已封存「${item.title}」，它不會再出現在預設選單中。`
+            ? `已封存「${item.title}」，之後新增紀錄時不會再出現。`
             : `已恢復「${item.title}」，現在可以再次使用。`,
         );
         await loadLocalData();
@@ -841,6 +860,9 @@ export function RecordDashboard({
               <h2 className="max-w-[12ch] text-[2rem] leading-[1.05] font-semibold tracking-tight sm:max-w-none sm:text-[2.5rem]">
                 {getSummaryViewTitle(activeTab)}
               </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                {getSummaryViewDescription(activeTab)}
+              </p>
             </div>
             <div className="w-full rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)] sm:w-auto">
               目前使用者：{currentUserLabel}
@@ -859,7 +881,7 @@ export function RecordDashboard({
           {editingRecordId ? '編輯紀錄' : '新增紀錄'}
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          先選項目、再填一個值即可。若只是快速補記，備註可以先留空。
+          {sectionCopy.create.recordForm}
         </p>
       </div>
 
@@ -1046,7 +1068,7 @@ export function RecordDashboard({
       <div>
         <h2 className="text-xl font-semibold">新增項目</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          若還缺少可選項目，可直接在這裡補上。先從最常記錄的那一個開始即可。
+          {sectionCopy.create.itemForm}
         </p>
       </div>
 
@@ -1169,7 +1191,7 @@ export function RecordDashboard({
         <div>
           <h2 className="text-xl font-semibold">紀錄列表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            在這裡查看、篩選與刪除既有紀錄，不再以整頁捲動來找資料。
+            {sectionCopy.records.page}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-3 text-sm text-[var(--muted)]">
@@ -1305,7 +1327,7 @@ export function RecordDashboard({
         <div>
           <h2 className="text-xl font-semibold">項目列表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            預設只顯示啟用中的項目；封存後會保留歷史紀錄，但不再出現在預設選單。
+            {sectionCopy.settings.activeItems}
           </p>
         </div>
 
@@ -1370,7 +1392,7 @@ export function RecordDashboard({
       <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
         <h2 className="text-xl font-semibold">已封存項目</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          已封存項目不會出現在預設選單，但歷史紀錄仍可保留與查詢。
+          {sectionCopy.settings.archivedItems}
         </p>
 
         <div className="mt-5 grid gap-3">
@@ -1452,7 +1474,7 @@ export function RecordDashboard({
                   {syncState.status === 'offline' ? '離線中' : syncStatusCard.statusLabel}
                 </p>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  pending {syncState.pendingCount} / failed {syncState.failedCount}
+                  待同步 {syncState.pendingCount} 筆 · 失敗 {syncState.failedCount} 筆
                 </p>
               </article>
             </div>
@@ -1524,6 +1546,9 @@ export function RecordDashboard({
           syncStatus={
             <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
               <h2 className="text-xl font-semibold">同步狀態</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                {sectionCopy.settings.sync}
+              </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
                   <p className="text-sm text-[var(--muted)]">目前狀態</p>
@@ -1539,8 +1564,11 @@ export function RecordDashboard({
                 </div>
               </div>
               <p className="mt-4 text-sm text-[var(--muted)]">
-                failed {syncState.failedCount} / conflict {syncState.conflictCount}
-                {syncState.lastError ? ` / ${syncState.lastError}` : ''}
+                {formatSyncIssueSummary({
+                  failedCount: syncState.failedCount,
+                  conflictCount: syncState.conflictCount,
+                  lastError: syncState.lastError,
+                })}
               </p>
             </section>
           }

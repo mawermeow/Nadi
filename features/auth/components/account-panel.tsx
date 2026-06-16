@@ -12,6 +12,7 @@ import {
   unlinkLocalAccount,
 } from '@/features/auth/client-service';
 import { runSync } from '@/features/sync/client-service';
+import { sectionCopy } from '@/lib/ui/section-copy';
 
 type AccountPanelProps = {
   initialSessionUser: {
@@ -191,7 +192,7 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
         <div>
           <h2 className="text-xl font-semibold">帳號與雲端同步</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            未登入時仍可使用本機模式。登入後，請先連結這台裝置，再決定是否把本機資料同步到帳號。
+            {sectionCopy.settings.account}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--muted)]">

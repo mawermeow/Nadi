@@ -10,6 +10,7 @@ import {
   formatMetricPreviewValue,
   formatSymptomPreviewValue,
 } from '@/features/reports/summary';
+import { sectionCopy } from '@/lib/ui/section-copy';
 
 type SummaryReportSectionProps = {
   initialReport: SummaryReportResponse;
@@ -109,7 +110,7 @@ export function SummaryReportSection({
         <div>
           <h2 className="text-xl font-semibold">摘要報表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            這裡整理目前區間內的基礎統計，幫助你回頭閱讀自己的紀錄，不代表任何醫療結論。
+            {sectionCopy.reports.summary}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--muted)]">
@@ -172,7 +173,7 @@ export function SummaryReportSection({
 
       {requiresAuth ? (
         <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
-          目前是本機模式。登入並連結裝置後，這裡會用帳號資料整理雲端摘要。
+          {sectionCopy.reports.localModeSummary}
         </div>
       ) : null}
 

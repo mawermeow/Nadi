@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { sectionCopy } from '@/lib/ui/section-copy';
 
 type DashboardViewProps = {
   recentRecords: ReactNode;
@@ -24,6 +25,9 @@ export function DashboardView({
             <h2 className="max-w-[12ch] text-[2rem] leading-[1.05] font-semibold tracking-tight sm:max-w-none sm:text-[2.5rem]">
               觀察自己的日常訊號
             </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+              {sectionCopy.dashboard.hero}
+            </p>
           </div>
           <div className="w-full rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)] sm:w-auto">
             目前使用者：{userEmail}
@@ -37,7 +41,7 @@ export function DashboardView({
         <div>
           <h3 className="text-xl font-semibold">最近紀錄</h3>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            只保留最近幾筆，方便快速回頭確認。
+            {sectionCopy.dashboard.recentRecords}
           </p>
         </div>
         <div className="mt-5 grid gap-3">{recentRecords}</div>

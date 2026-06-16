@@ -13,6 +13,7 @@ import { TextInput } from '@/components/forms/text-input';
 import type { ItemResponse } from '@/features/items/api';
 import type { CorrelationReportResponse } from '@/features/reports/api';
 import { getDefaultCorrelationDescription } from '@/features/reports/correlation';
+import { sectionCopy } from '@/lib/ui/section-copy';
 
 type CorrelationReportSectionProps = {
   initialReport: CorrelationReportResponse;
@@ -155,7 +156,7 @@ export function CorrelationReportSection({
         <div>
           <h2 className="text-xl font-semibold text-rose-700">關聯觀察</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            這裡只整理可能相關的模式，幫助你回頭觀察症狀前後的紀錄，不代表因果關係或醫療結論。
+            {sectionCopy.reports.correlation}
           </p>
         </div>
         <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -271,7 +272,7 @@ export function CorrelationReportSection({
 
       {requiresAuth ? (
         <div className="mt-5 rounded-2xl border border-dashed border-rose-200 bg-rose-50/70 px-4 py-6 text-sm leading-6 text-[var(--muted)]">
-          目前是本機模式。登入並連結裝置後，這裡才會整理帳號資料中的相對關聯。
+          {sectionCopy.reports.localModeCorrelation}
         </div>
       ) : null}
 

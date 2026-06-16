@@ -15,6 +15,7 @@ import {
 import { Select } from '@/components/forms/select';
 import { TextInput } from '@/components/forms/text-input';
 import type { ItemResponse } from '@/features/items/api';
+import { sectionCopy } from '@/lib/ui/section-copy';
 
 type ItemDashboardProps = {
   initialItems: ItemResponse[];
@@ -177,7 +178,7 @@ export function ItemDashboard({
               <div>
                 <h2 className="text-xl font-semibold">新增項目</h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  流程盡量保持簡單，先建立，再慢慢調整。
+                  {sectionCopy.items.createItem}
                 </p>
               </div>
             </div>
@@ -321,7 +322,7 @@ export function ItemDashboard({
             <div>
               <h2 className="text-xl font-semibold">項目列表</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                預設只顯示啟用中的項目。
+                {sectionCopy.items.activeItems}
               </p>
             </div>
 
