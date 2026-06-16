@@ -61,6 +61,18 @@ const optionalNoteSchema = z.preprocess((value) => {
   return value;
 }, z.string().trim().max(500, '備註最多 500 個字').optional());
 
+const nullableOptionalNoteSchema = z.preprocess((value) => {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string' && value.trim() === '') {
+    return null;
+  }
+
+  return value;
+}, z.string().trim().max(500, '備註最多 500 個字').nullable().optional());
+
 const syncItemCreatePayloadSchema = z
   .object({
     title: z
@@ -145,7 +157,7 @@ const syncRecordCreatePayloadSchema = z.object({
   itemId: z.uuid('無效的 itemId'),
   value: recordValueSchema,
   recordedAt: isoDateTimeSchema,
-  note: optionalNoteSchema,
+  note: nullableOptionalNoteSchema,
 });
 
 const syncRecordUpdatePayloadSchema = z
@@ -153,7 +165,7 @@ const syncRecordUpdatePayloadSchema = z
     itemId: z.uuid('無效的 itemId').optional(),
     value: recordValueSchema.optional(),
     recordedAt: isoDateTimeSchema.optional(),
-    note: optionalNoteSchema,
+    note: nullableOptionalNoteSchema,
   })
   .refine(
     (value) =>

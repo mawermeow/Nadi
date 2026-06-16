@@ -45,6 +45,30 @@ describe('syncPushRequestSchema', () => {
       }),
     ).toThrow('update / delete 需要提供 baseVersion');
   });
+
+  it('accepts record payload with null note', () => {
+    const result = syncPushRequestSchema.parse({
+      deviceId: 'device-local',
+      operations: [
+        {
+          operationId: 'op-2',
+          entityType: 'record',
+          operationType: 'create',
+          entityId: '11111111-1111-4111-8111-111111111118',
+          payload: {
+            itemId: '11111111-1111-4111-8111-111111111111',
+            value: 6.5,
+            recordedAt: '2026-06-16T08:00:00.000Z',
+            note: null,
+          },
+          clientCreatedAt: '2026-06-16T08:00:00.000Z',
+          clientUpdatedAt: '2026-06-16T08:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.operations).toHaveLength(1);
+  });
 });
 
 describe('syncPullRequestSchema', () => {
