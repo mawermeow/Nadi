@@ -1,5 +1,20 @@
 export type SyncLifecycleStatus = 'idle' | 'syncing' | 'offline' | 'error' | 'conflict';
 
+export type SyncDeviceSessionSummary = {
+  deviceId: string;
+  lastSeenAt: string;
+  lastSyncCompletedAt: string | null;
+  lastCheckpointAt: string | null;
+  lastSyncStatus: 'idle' | 'syncing' | 'synced' | 'conflict' | 'failed';
+  lastErrorCode: string | null;
+} | null;
+
+export type SyncDiagnosticsSummary = {
+  lastEventAt: string;
+  lastEventType: 'push' | 'pull' | 'conflict' | 'failure';
+  lastMessage: string;
+} | null;
+
 export type SyncState = {
   status: SyncLifecycleStatus;
   lastSyncAt: string | null;
@@ -7,6 +22,8 @@ export type SyncState = {
   failedCount: number;
   conflictCount: number;
   lastError: string | null;
+  deviceSession: SyncDeviceSessionSummary;
+  diagnostics: SyncDiagnosticsSummary;
 };
 
 type SyncStateListener = (state: SyncState) => void;
@@ -18,6 +35,8 @@ let syncState: SyncState = {
   failedCount: 0,
   conflictCount: 0,
   lastError: null,
+  deviceSession: null,
+  diagnostics: null,
 };
 
 const listeners = new Set<SyncStateListener>();
@@ -58,6 +77,8 @@ export function resetSyncState() {
     failedCount: 0,
     conflictCount: 0,
     lastError: null,
+    deviceSession: null,
+    diagnostics: null,
   };
   emitSyncState();
 }

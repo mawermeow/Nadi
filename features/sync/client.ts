@@ -72,10 +72,36 @@ const syncConflictSchema = z.object({
   serverEntity: z.union([syncItemEntitySchema, syncRecordEntitySchema]),
 });
 
+const syncDeviceSessionSchema = z.object({
+  deviceId: z.string().min(1),
+  lastSeenAt: isoDateTimeSchema,
+  lastSyncStartedAt: isoDateTimeSchema.nullable(),
+  lastSyncCompletedAt: isoDateTimeSchema.nullable(),
+  lastPushAt: isoDateTimeSchema.nullable(),
+  lastPullAt: isoDateTimeSchema.nullable(),
+  lastCheckpointAt: isoDateTimeSchema.nullable(),
+  lastCheckpointCursor: z.string().nullable(),
+  lastSyncStatus: z.enum(['idle', 'syncing', 'synced', 'conflict', 'failed']),
+  lastErrorCode: z.string().nullable(),
+  lastErrorAt: isoDateTimeSchema.nullable(),
+});
+
+const syncDiagnosticsSchema = z.object({
+  duplicateOperationCount: z.number().int().min(0),
+  acceptedOperationCount: z.number().int().min(0),
+  rejectedOperationCount: z.number().int().min(0),
+  conflictOperationCount: z.number().int().min(0),
+  pulledItemCount: z.number().int().min(0),
+  pulledRecordCount: z.number().int().min(0),
+  pulledTombstoneCount: z.number().int().min(0),
+});
+
 const syncPushResponseSchema = z.object({
   accepted: z.array(syncAcceptedOperationResponseSchema),
   rejected: z.array(syncRejectedOperationResponseSchema),
   conflicts: z.array(syncConflictSchema),
+  deviceSession: syncDeviceSessionSchema,
+  diagnostics: syncDiagnosticsSchema,
   serverTime: isoDateTimeSchema,
 });
 
@@ -91,6 +117,16 @@ const syncPullResponseSchema = z.object({
   items: z.array(syncItemEntitySchema),
   records: z.array(syncRecordEntitySchema),
   tombstones: z.array(syncTombstoneSchema),
+  checkpoint: z.object({
+    since: isoDateTimeSchema.nullable(),
+    until: isoDateTimeSchema,
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+    limit: z.number().int().min(1),
+    returnedCount: z.number().int().min(0),
+  }),
+  deviceSession: syncDeviceSessionSchema,
+  diagnostics: syncDiagnosticsSchema,
   serverTime: isoDateTimeSchema,
 });
 

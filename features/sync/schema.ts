@@ -259,14 +259,37 @@ export const syncPushRequestSchema = z.object({
   operations: z.array(syncOperationSchema),
 });
 
-export const syncPullRequestSchema = z.object({
-  deviceId: deviceIdSchema,
-  lastPulledAt: isoDateTimeSchema.optional(),
+export const syncPullCheckpointSchema = z.object({
+  until: isoDateTimeSchema.optional(),
+  cursor: z.string().trim().min(1, 'cursor 不可為空').optional(),
+  limit: z.coerce
+    .number()
+    .int('limit 必須是整數')
+    .min(1, 'limit 至少要 1')
+    .max(200, 'limit 最多 200')
+    .optional(),
 });
+
+export const syncPullRequestSchema = z
+  .object({
+    deviceId: deviceIdSchema,
+    lastPulledAt: isoDateTimeSchema.optional(),
+    checkpoint: syncPullCheckpointSchema.optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.checkpoint?.cursor && !value.checkpoint.until) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['checkpoint', 'until'],
+        message: '使用 cursor 時需要提供 checkpoint.until',
+      });
+    }
+  });
 
 export type SyncOperationInput = z.infer<typeof syncOperationSchema>;
 export type SyncPushRequestInput = z.infer<typeof syncPushRequestSchema>;
 export type SyncPullRequestInput = z.infer<typeof syncPullRequestSchema>;
+export type SyncPullCheckpointInput = z.infer<typeof syncPullCheckpointSchema>;
 export type SyncItemCreatePayload = z.infer<typeof syncItemCreatePayloadSchema>;
 export type SyncItemUpdatePayload = z.infer<typeof syncItemUpdatePayloadSchema>;
 export type SyncRecordCreatePayload = z.infer<typeof syncRecordCreatePayloadSchema>;

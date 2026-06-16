@@ -18,7 +18,6 @@
 
 - UI 全面 local-first
 - reliable iOS background sync
-- sync operation idempotency persistence
 - 完整 conflict resolution UI
 
 ## Base Rules
@@ -241,6 +240,28 @@ Response body:
   "accepted": [],
   "rejected": [],
   "conflicts": [],
+  "deviceSession": {
+    "deviceId": "device-local",
+    "lastSeenAt": "2026-06-16T12:00:00.000Z",
+    "lastSyncStartedAt": "2026-06-16T12:00:00.000Z",
+    "lastSyncCompletedAt": "2026-06-16T12:00:00.000Z",
+    "lastPushAt": "2026-06-16T12:00:00.000Z",
+    "lastPullAt": null,
+    "lastCheckpointAt": null,
+    "lastCheckpointCursor": null,
+    "lastSyncStatus": "synced",
+    "lastErrorCode": null,
+    "lastErrorAt": null
+  },
+  "diagnostics": {
+    "duplicateOperationCount": 0,
+    "acceptedOperationCount": 1,
+    "rejectedOperationCount": 0,
+    "conflictOperationCount": 0,
+    "pulledItemCount": 0,
+    "pulledRecordCount": 0,
+    "pulledTombstoneCount": 0
+  },
   "serverTime": "2026-06-16T12:00:00.000Z"
 }
 ```
@@ -258,6 +279,8 @@ Push 規則：
   - 使用 soft delete
   - 設定 `deletedAt`
   - `version + 1`
+- server 會持久化 `operationId` receipt，重送同一筆 operation 時應 replay 既有結果，不重複建立資料
+- diagnostics logging 只保留 operation metadata、version、error code，不保留完整私人紀錄內容
 
 Conflict 偵測方式：
 
@@ -326,7 +349,12 @@ Request body:
 ```json
 {
   "deviceId": "device-local",
-  "lastPulledAt": "2026-06-16T00:00:00.000Z"
+  "lastPulledAt": "2026-06-16T00:00:00.000Z",
+  "checkpoint": {
+    "until": "2026-06-16T12:00:00.000Z",
+    "cursor": "{\"updatedAt\":\"2026-06-16T09:00:00.000Z\",\"entityType\":\"item\",\"entityId\":\"uuid\"}",
+    "limit": 100
+  }
 }
 ```
 
@@ -337,6 +365,36 @@ Response body:
   "items": [],
   "records": [],
   "tombstones": [],
+  "checkpoint": {
+    "since": "2026-06-16T00:00:00.000Z",
+    "until": "2026-06-16T12:00:00.000Z",
+    "nextCursor": null,
+    "hasMore": false,
+    "limit": 100,
+    "returnedCount": 0
+  },
+  "deviceSession": {
+    "deviceId": "device-local",
+    "lastSeenAt": "2026-06-16T12:00:00.000Z",
+    "lastSyncStartedAt": "2026-06-16T12:00:00.000Z",
+    "lastSyncCompletedAt": "2026-06-16T12:00:00.000Z",
+    "lastPushAt": "2026-06-16T11:58:00.000Z",
+    "lastPullAt": "2026-06-16T12:00:00.000Z",
+    "lastCheckpointAt": "2026-06-16T12:00:00.000Z",
+    "lastCheckpointCursor": null,
+    "lastSyncStatus": "synced",
+    "lastErrorCode": null,
+    "lastErrorAt": null
+  },
+  "diagnostics": {
+    "duplicateOperationCount": 0,
+    "acceptedOperationCount": 0,
+    "rejectedOperationCount": 0,
+    "conflictOperationCount": 0,
+    "pulledItemCount": 0,
+    "pulledRecordCount": 0,
+    "pulledTombstoneCount": 0
+  },
   "serverTime": "2026-06-16T12:00:00.000Z"
 }
 ```
@@ -344,9 +402,11 @@ Response body:
 Pull 規則：
 
 - 若沒有 `lastPulledAt`，回傳完整初始資料
-- 若有 `lastPulledAt`，回傳 `updatedAt > lastPulledAt` 的變更
+- 若有 `lastPulledAt`，回傳 `updatedAt > lastPulledAt` 且 `updatedAt <= checkpoint.until` 的變更
 - `items[]` / `records[]` 只放尚未 soft delete 的資料
 - `tombstones[]` 放 `deletedAt != null` 的刪除事件
+- 若資料量過大，server 可回 `checkpoint.hasMore=true` 與 `nextCursor`，client 必須在同一個 `until` watermark 下繼續拉取
+- client 只有在 `hasMore=false` 時才應推進本機 `lastPulledAt`
 
 Tombstone 用途：
 
@@ -356,18 +416,11 @@ Tombstone 用途：
 
 ## Idempotency Note
 
-`operationId` 的長期設計目標是 server-side idempotency。
+目前 server 已透過 `sync_operation_receipts` 持久化 `operationId`，用來：
 
-未來應做：
-
-- 將 `operationId` 儲存在 server
-- server 避免重複套用相同 operation
-
-目前 skeleton 限制：
-
-- 尚未建立 `sync_operations` table
-- 尚未持久化 `operationId`
-- 若相同 operation 被重送，目前無法保證完整冪等性
+- 避免 push retry 重複建立 item / record
+- 在多裝置不穩定網路下 replay 同一筆 operation 的既有結果
+- 讓 conflict / reject 有 server-side traceability
 
 ## Reports
 

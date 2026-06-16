@@ -79,4 +79,19 @@ describe('syncPullRequestSchema', () => {
 
     expect(result.deviceId).toBe('device-local');
   });
+
+  it('accepts checkpoint-based incremental pull', () => {
+    const result = syncPullRequestSchema.parse({
+      deviceId: 'device-local',
+      lastPulledAt: '2026-06-16T00:00:00.000Z',
+      checkpoint: {
+        until: '2026-06-16T06:00:00.000Z',
+        cursor:
+          '{"updatedAt":"2026-06-16T01:00:00.000Z","entityType":"item","entityId":"11111111-1111-4111-8111-111111111111"}',
+        limit: 50,
+      },
+    });
+
+    expect(result.checkpoint?.limit).toBe(50);
+  });
 });

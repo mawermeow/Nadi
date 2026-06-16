@@ -1,5 +1,4 @@
 import { authClient } from '@/lib/auth/auth-client';
-import { getLinkedAccount } from '@/features/sync/meta';
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import {
@@ -9,9 +8,17 @@ import {
 } from '@/features/sync/client';
 import { getOrCreateDeviceId } from '@/features/sync/device';
 import {
+  appendSyncDiagnosticEvent,
+  clearPullCheckpoint,
   getLastPulledAt,
+  getLinkedAccount,
+  getPullCheckpoint,
+  getSyncDiagnosticsEvents,
+  getStoredDeviceSession,
+  setPullCheckpoint,
   setLastPulledAt,
   setLastSyncedAt,
+  setStoredDeviceSession,
 } from '@/features/sync/meta';
 import { startSyncNetworkMonitor, isNavigatorOnline } from '@/features/sync/network';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
@@ -88,6 +95,59 @@ async function refreshSyncCounts() {
     failedCount,
     conflictCount,
   };
+}
+
+async function refreshSyncTelemetry() {
+  const [deviceSession, diagnosticsEvents] = await Promise.all([
+    getStoredDeviceSession(),
+    getSyncDiagnosticsEvents(),
+  ]);
+  const lastDiagnostic = diagnosticsEvents[0] ?? null;
+
+  setSyncState({
+    deviceSession: deviceSession
+      ? {
+          deviceId: deviceSession.deviceId,
+          lastSeenAt: deviceSession.lastSeenAt,
+          lastSyncCompletedAt: deviceSession.lastSyncCompletedAt,
+          lastCheckpointAt: deviceSession.lastCheckpointAt,
+          lastSyncStatus: deviceSession.lastSyncStatus,
+          lastErrorCode: deviceSession.lastErrorCode,
+        }
+      : null,
+    diagnostics: lastDiagnostic
+      ? {
+          lastEventAt: lastDiagnostic.createdAt,
+          lastEventType: lastDiagnostic.type,
+          lastMessage: lastDiagnostic.message,
+        }
+      : null,
+  });
+}
+
+export async function hydrateSyncTelemetryState() {
+  await Promise.all([refreshSyncCounts(), refreshSyncTelemetry()]);
+}
+
+async function storeResponseTelemetry(
+  response: Pick<SyncPullResponse, 'deviceSession' | 'diagnostics' | 'serverTime'>,
+  input: {
+    type: 'push' | 'pull' | 'conflict' | 'failure';
+    message: string;
+    metadata: Record<string, unknown>;
+  },
+) {
+  await Promise.all([
+    setStoredDeviceSession(response.deviceSession),
+    appendSyncDiagnosticEvent({
+      id: crypto.randomUUID(),
+      type: input.type,
+      createdAt: response.serverTime,
+      message: input.message,
+      metadata: input.metadata,
+    }),
+  ]);
+  await refreshSyncTelemetry();
 }
 
 async function markEntitySynced(
@@ -191,7 +251,7 @@ async function applyTombstone(tombstone: SyncTombstone, serverTime: string) {
   if (tombstone.entityType === 'item') {
     const local = await itemLocalRepository.getById(tombstone.entityId);
 
-    if (!local) {
+    if (!local || local.syncStatus !== 'synced') {
       return;
     }
 
@@ -208,7 +268,7 @@ async function applyTombstone(tombstone: SyncTombstone, serverTime: string) {
 
   const local = await recordLocalRepository.getById(tombstone.entityId);
 
-  if (!local) {
+  if (!local || local.syncStatus !== 'synced') {
     return;
   }
 
@@ -307,6 +367,26 @@ export async function pushPendingOperations() {
   await handleConflicts(response.conflicts, response.serverTime);
   await setLastSyncedAt(response.serverTime);
   await refreshSyncCounts();
+  await storeResponseTelemetry(response, {
+    type:
+      response.conflicts.length > 0
+        ? 'conflict'
+        : response.rejected.length > 0
+          ? 'failure'
+          : 'push',
+    message:
+      response.conflicts.length > 0
+        ? `發現 ${response.conflicts.length} 筆同步衝突，已保留本機待處理變更。`
+        : response.rejected.length > 0
+          ? `有 ${response.rejected.length} 筆同步操作失敗，已保留本機資料。`
+          : `已推送 ${response.accepted.length} 筆操作。`,
+    metadata: {
+      duplicateOperationCount: response.diagnostics.duplicateOperationCount,
+      acceptedOperationCount: response.diagnostics.acceptedOperationCount,
+      rejectedOperationCount: response.diagnostics.rejectedOperationCount,
+      conflictOperationCount: response.diagnostics.conflictOperationCount,
+    },
+  });
 
   return response;
 }
@@ -324,27 +404,86 @@ export async function pullRemoteChanges() {
   }
 
   const deviceId = await getOrCreateDeviceId();
-  const lastPulledAt = await getLastPulledAt();
-  const response: SyncPullResponse = await pullSyncChangesRequest({
-    deviceId,
-    lastPulledAt: lastPulledAt ?? undefined,
-  });
+  const [lastPulledAt, existingCheckpoint] = await Promise.all([
+    getLastPulledAt(),
+    getPullCheckpoint(),
+  ]);
+  let response: SyncPullResponse | null = null;
+  let nextCheckpoint = existingCheckpoint;
+  let pageCount = 0;
+  const totals = {
+    pulledItemCount: 0,
+    pulledRecordCount: 0,
+    pulledTombstoneCount: 0,
+  };
 
-  for (const item of response.items) {
-    await upsertRemoteItem(item, response.serverTime);
+  do {
+    response = await pullSyncChangesRequest({
+      deviceId,
+      lastPulledAt:
+        nextCheckpoint?.since ?? lastPulledAt ?? undefined,
+      checkpoint: nextCheckpoint
+        ? {
+            until: nextCheckpoint.until,
+            cursor: nextCheckpoint.nextCursor ?? undefined,
+            limit: nextCheckpoint.limit,
+          }
+        : {
+            limit: 100,
+          },
+    });
+
+    for (const item of response.items) {
+      await upsertRemoteItem(item, response.serverTime);
+    }
+
+    for (const record of response.records) {
+      await upsertRemoteRecord(record, response.serverTime);
+    }
+
+    for (const tombstone of response.tombstones) {
+      await applyTombstone(tombstone, response.serverTime);
+    }
+
+    nextCheckpoint = response.checkpoint;
+    pageCount += 1;
+    totals.pulledItemCount += response.diagnostics.pulledItemCount;
+    totals.pulledRecordCount += response.diagnostics.pulledRecordCount;
+    totals.pulledTombstoneCount += response.diagnostics.pulledTombstoneCount;
+
+    if (response.checkpoint.hasMore) {
+      await setPullCheckpoint(response.checkpoint);
+    } else {
+      await Promise.all([
+        clearPullCheckpoint(),
+        setLastPulledAt(response.checkpoint.until),
+      ]);
+    }
+
+    if (pageCount > 20) {
+      throw new Error('同步分頁超過安全上限，已停止以避免重複拉取。');
+    }
+  } while (response.checkpoint.hasMore);
+
+  if (!response) {
+    return null;
   }
 
-  for (const record of response.records) {
-    await upsertRemoteRecord(record, response.serverTime);
-  }
-
-  for (const tombstone of response.tombstones) {
-    await applyTombstone(tombstone, response.serverTime);
-  }
-
-  await setLastPulledAt(response.serverTime);
   await setLastSyncedAt(response.serverTime);
   await refreshSyncCounts();
+  await storeResponseTelemetry(response, {
+    type: 'pull',
+    message: response.checkpoint.hasMore
+      ? '已拉取部分遠端變更，仍有後續分頁待完成。'
+      : `已拉取 ${totals.pulledItemCount + totals.pulledRecordCount + totals.pulledTombstoneCount} 筆遠端變更。`,
+    metadata: {
+      pulledItemCount: totals.pulledItemCount,
+      pulledRecordCount: totals.pulledRecordCount,
+      pulledTombstoneCount: totals.pulledTombstoneCount,
+      checkpointUntil: response.checkpoint.until,
+      pageCount,
+    },
+  });
 
   return response;
 }
@@ -400,6 +539,16 @@ export async function runSync() {
         return;
       }
 
+      await appendSyncDiagnosticEvent({
+        id: crypto.randomUUID(),
+        type: 'failure',
+        createdAt: new Date().toISOString(),
+        message: getSyncErrorMessage(error),
+        metadata: {
+          code: error instanceof SyncClientError ? error.code : 'SYNC_RUNTIME_ERROR',
+        },
+      });
+      await refreshSyncTelemetry();
       setSyncState({
         status: 'error',
         lastError: getSyncErrorMessage(error),

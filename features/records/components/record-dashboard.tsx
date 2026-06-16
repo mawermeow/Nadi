@@ -58,7 +58,11 @@ import {
   mapLocalItemToItemResponse,
   mapLocalRecordToRecordResponse,
 } from '@/features/sync/local-ui';
-import { startForegroundSync, runSync } from '@/features/sync/client-service';
+import {
+  hydrateSyncTelemetryState,
+  startForegroundSync,
+  runSync,
+} from '@/features/sync/client-service';
 import { getSyncState, subscribeSyncState, type SyncState } from '@/features/sync/state';
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
@@ -241,6 +245,25 @@ function formatSyncTimestamp(value: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
+}
+
+function formatSyncTelemetrySummary(input: {
+  checkpointAt: string | null;
+  deviceId: string | null;
+  diagnosticMessage: string | null;
+}) {
+  const parts = [
+    input.checkpointAt
+      ? `checkpoint：${formatSyncTimestamp(input.checkpointAt)}`
+      : 'checkpoint：尚未建立',
+    input.deviceId ? `裝置：${input.deviceId.slice(0, 8)}…` : '裝置：未識別',
+  ];
+
+  if (input.diagnosticMessage) {
+    parts.push(input.diagnosticMessage);
+  }
+
+  return parts.join(' · ');
 }
 
 function scrollToTopAfterTabChange() {
@@ -512,6 +535,7 @@ export function RecordDashboard({
     let stopForegroundSync: () => void = () => {};
 
     async function initializeLocalFirstUi() {
+      await hydrateSyncTelemetryState();
       await hydrateLocalStoreFromServerSnapshot({
         items: initialItems,
         records: initialRecords,
@@ -1476,6 +1500,13 @@ export function RecordDashboard({
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   待同步 {syncState.pendingCount} 筆 · 失敗 {syncState.failedCount} 筆
                 </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {formatSyncTelemetrySummary({
+                    checkpointAt: syncState.deviceSession?.lastCheckpointAt ?? null,
+                    deviceId: syncState.deviceSession?.deviceId ?? null,
+                    diagnosticMessage: syncState.diagnostics?.lastMessage ?? null,
+                  })}
+                </p>
               </article>
             </div>
           }
@@ -1561,6 +1592,28 @@ export function RecordDashboard({
                 <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
                   <p className="text-sm text-[var(--muted)]">上次同步</p>
                   <p className="mt-2 text-sm font-medium">{syncStatusCard.lastSyncAt}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-sm text-[var(--muted)]">目前裝置 session</p>
+                  <p className="mt-2 text-sm font-medium">
+                    {syncState.deviceSession?.deviceId ?? '尚未建立'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-sm text-[var(--muted)]">Checkpoint</p>
+                  <p className="mt-2 text-sm font-medium">
+                    {formatSyncTimestamp(
+                      syncState.deviceSession?.lastCheckpointAt ?? null,
+                    )}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-sm text-[var(--muted)]">最近診斷</p>
+                  <p className="mt-2 text-sm font-medium">
+                    {syncState.diagnostics?.lastMessage ?? '目前沒有診斷事件'}
+                  </p>
                 </div>
               </div>
               <p className="mt-4 text-sm text-[var(--muted)]">

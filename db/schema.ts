@@ -36,6 +36,18 @@ export const syncStatusEnum = pgEnum('sync_status', [
   'conflict',
   'failed',
 ]);
+export const syncSessionStatusEnum = pgEnum('sync_session_status', [
+  'idle',
+  'syncing',
+  'synced',
+  'conflict',
+  'failed',
+]);
+export const syncOperationOutcomeEnum = pgEnum('sync_operation_outcome', [
+  'accepted',
+  'rejected',
+  'conflict',
+]);
 export const reportTypeEnum = pgEnum('report_type', [
   'summary',
   'correlation',
@@ -164,6 +176,47 @@ export const deviceAccountLinks = pgTable(
   ],
 );
 
+export const syncDeviceSessions = pgTable(
+  'sync_device_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceId: text('device_id').notNull(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastSyncStartedAt: timestamp('last_sync_started_at', { withTimezone: true }),
+    lastSyncCompletedAt: timestamp('last_sync_completed_at', { withTimezone: true }),
+    lastPushAt: timestamp('last_push_at', { withTimezone: true }),
+    lastPullAt: timestamp('last_pull_at', { withTimezone: true }),
+    lastCheckpointAt: timestamp('last_checkpoint_at', { withTimezone: true }),
+    lastCheckpointCursor: text('last_checkpoint_cursor'),
+    lastSyncStatus: syncSessionStatusEnum('last_sync_status')
+      .notNull()
+      .default('idle'),
+    lastErrorCode: text('last_error_code'),
+    lastErrorAt: timestamp('last_error_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('sync_device_sessions_user_device_idx').on(
+      table.userId,
+      table.deviceId,
+    ),
+    index('sync_device_sessions_user_status_idx').on(
+      table.userId,
+      table.lastSyncStatus,
+    ),
+    index('sync_device_sessions_user_checkpoint_idx').on(
+      table.userId,
+      table.lastCheckpointAt,
+    ),
+    index('sync_device_sessions_last_seen_at_idx').on(table.lastSeenAt),
+  ],
+);
+
 export const items = pgTable(
   'items',
   {
@@ -281,11 +334,63 @@ export const reportSnapshots = pgTable(
   ],
 );
 
+export const syncOperationReceipts = pgTable(
+  'sync_operation_receipts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceId: text('device_id').notNull(),
+    operationId: text('operation_id').notNull(),
+    entityType: text('entity_type').notNull(),
+    operationType: text('operation_type').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    outcome: syncOperationOutcomeEnum('outcome').notNull(),
+    baseVersion: integer('base_version'),
+    resultingVersion: integer('resulting_version'),
+    currentVersion: integer('current_version'),
+    reasonCode: text('reason_code'),
+    message: text('message'),
+    clientCreatedAt: timestamp('client_created_at', { withTimezone: true })
+      .notNull(),
+    clientUpdatedAt: timestamp('client_updated_at', { withTimezone: true })
+      .notNull(),
+    entityUpdatedAt: timestamp('entity_updated_at', { withTimezone: true }),
+    serverRecordedAt: timestamp('server_recorded_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('sync_operation_receipts_user_operation_idx').on(
+      table.userId,
+      table.operationId,
+    ),
+    index('sync_operation_receipts_user_device_recorded_idx').on(
+      table.userId,
+      table.deviceId,
+      table.serverRecordedAt,
+    ),
+    index('sync_operation_receipts_user_entity_idx').on(
+      table.userId,
+      table.entityType,
+      table.entityId,
+    ),
+    index('sync_operation_receipts_user_outcome_idx').on(
+      table.userId,
+      table.outcome,
+    ),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type Verification = typeof verifications.$inferSelect;
 export type DeviceAccountLink = typeof deviceAccountLinks.$inferSelect;
+export type SyncDeviceSession = typeof syncDeviceSessions.$inferSelect;
 export type Item = typeof items.$inferSelect;
 export type Record = typeof records.$inferSelect;
 export type ReportSnapshot = typeof reportSnapshots.$inferSelect;
+export type SyncOperationReceipt = typeof syncOperationReceipts.$inferSelect;

@@ -12,12 +12,16 @@ vi.mock('@/features/items/repository', () => ({
 vi.mock('@/features/sync/repository', () => ({
   createSyncItemRecord: vi.fn(),
   createSyncRecordRecord: vi.fn(),
+  findSyncDeviceSessionByUserAndDeviceId: vi.fn(),
+  findSyncOperationReceiptByUserAndOperationId: vi.fn(),
   findSyncItemById: vi.fn(),
   findSyncItemByIdForUser: vi.fn(),
   findSyncRecordById: vi.fn(),
   findSyncRecordByIdForUser: vi.fn(),
-  listSyncItemsByUserId: vi.fn(),
-  listSyncRecordsByUserId: vi.fn(),
+  listSyncItemChangesByUserId: vi.fn(),
+  listSyncRecordChangesByUserId: vi.fn(),
+  upsertSyncDeviceSession: vi.fn(),
+  upsertSyncOperationReceipt: vi.fn(),
   updateSyncItemRecord: vi.fn(),
   updateSyncRecordRecord: vi.fn(),
 }));
@@ -25,12 +29,15 @@ vi.mock('@/features/sync/repository', () => ({
 import { findItemByIdForUser } from '@/features/items/repository';
 import {
   createSyncItemRecord,
+  findSyncDeviceSessionByUserAndDeviceId,
+  findSyncOperationReceiptByUserAndOperationId,
   findSyncItemById,
   findSyncItemByIdForUser,
   findSyncRecordById,
   findSyncRecordByIdForUser,
-  listSyncItemsByUserId,
-  listSyncRecordsByUserId,
+  listSyncItemChangesByUserId,
+  listSyncRecordChangesByUserId,
+  upsertSyncDeviceSession,
   updateSyncRecordRecord,
 } from '@/features/sync/repository';
 import { pullSyncChangesForUser, pushSyncOperationsForUser } from '@/features/sync/service';
@@ -82,6 +89,40 @@ const baseRecord = {
 describe('sync service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi
+      .mocked(findSyncDeviceSessionByUserAndDeviceId)
+      .mockResolvedValue(
+        null as unknown as Awaited<
+          ReturnType<typeof findSyncDeviceSessionByUserAndDeviceId>
+        >,
+      );
+    vi
+      .mocked(findSyncOperationReceiptByUserAndOperationId)
+      .mockResolvedValue(
+        null as unknown as Awaited<
+          ReturnType<typeof findSyncOperationReceiptByUserAndOperationId>
+        >,
+      );
+    vi.mocked(upsertSyncDeviceSession).mockImplementation(
+      async (input) =>
+        ({
+          id: 'session-1',
+          userId: input.userId,
+          deviceId: input.deviceId,
+          lastSeenAt: input.lastSeenAt ?? new Date('2026-06-16T00:00:00.000Z'),
+          lastSyncStartedAt: input.lastSyncStartedAt ?? null,
+          lastSyncCompletedAt: input.lastSyncCompletedAt ?? null,
+          lastPushAt: input.lastPushAt ?? null,
+          lastPullAt: input.lastPullAt ?? null,
+          lastCheckpointAt: input.lastCheckpointAt ?? null,
+          lastCheckpointCursor: input.lastCheckpointCursor ?? null,
+          lastSyncStatus: input.lastSyncStatus,
+          lastErrorCode: input.lastErrorCode ?? null,
+          lastErrorAt: input.lastErrorAt ?? null,
+          createdAt: input.createdAt ?? new Date('2026-06-16T00:00:00.000Z'),
+          updatedAt: input.updatedAt ?? new Date('2026-06-16T00:00:00.000Z'),
+        }) as Awaited<ReturnType<typeof upsertSyncDeviceSession>>,
+    );
   });
 
   it('pushes create item operation', async () => {
@@ -113,6 +154,7 @@ describe('sync service', () => {
     expect(result.accepted).toHaveLength(1);
     expect(result.rejected).toHaveLength(0);
     expect(result.conflicts).toHaveLength(0);
+    expect(result.diagnostics.acceptedOperationCount).toBe(1);
   });
 
   it('pushes update with matching version', async () => {
@@ -206,8 +248,8 @@ describe('sync service', () => {
   });
 
   it('pulls initial data', async () => {
-    vi.mocked(listSyncItemsByUserId).mockResolvedValue([baseItem]);
-    vi.mocked(listSyncRecordsByUserId).mockResolvedValue([baseRecord]);
+    vi.mocked(listSyncItemChangesByUserId).mockResolvedValue([baseItem]);
+    vi.mocked(listSyncRecordChangesByUserId).mockResolvedValue([baseRecord]);
 
     const result = await pullSyncChangesForUser(user, {
       deviceId: 'device-a',
@@ -216,16 +258,17 @@ describe('sync service', () => {
     expect(result.items).toHaveLength(1);
     expect(result.records).toHaveLength(1);
     expect(result.tombstones).toHaveLength(0);
+    expect(result.checkpoint.hasMore).toBe(false);
   });
 
   it('pulls incremental changes', async () => {
-    vi.mocked(listSyncItemsByUserId).mockResolvedValue([
+    vi.mocked(listSyncItemChangesByUserId).mockResolvedValue([
       {
         ...baseItem,
         updatedAt: new Date('2026-06-16T03:00:00.000Z'),
       },
     ]);
-    vi.mocked(listSyncRecordsByUserId).mockResolvedValue([]);
+    vi.mocked(listSyncRecordChangesByUserId).mockResolvedValue([]);
 
     const result = await pullSyncChangesForUser(user, {
       deviceId: 'device-a',
@@ -237,14 +280,14 @@ describe('sync service', () => {
   });
 
   it('returns tombstones on pull', async () => {
-    vi.mocked(listSyncItemsByUserId).mockResolvedValue([
+    vi.mocked(listSyncItemChangesByUserId).mockResolvedValue([
       {
         ...baseItem,
         deletedAt: new Date('2026-06-16T03:00:00.000Z'),
         updatedAt: new Date('2026-06-16T03:00:00.000Z'),
       },
     ]);
-    vi.mocked(listSyncRecordsByUserId).mockResolvedValue([]);
+    vi.mocked(listSyncRecordChangesByUserId).mockResolvedValue([]);
 
     const result = await pullSyncChangesForUser(user, {
       deviceId: 'device-a',
@@ -254,5 +297,78 @@ describe('sync service', () => {
     expect(result.items).toHaveLength(0);
     expect(result.tombstones).toHaveLength(1);
     expect(result.tombstones[0]?.entityType).toBe('item');
+  });
+
+  it('replays duplicate operations from stored receipts', async () => {
+    vi.mocked(findSyncOperationReceiptByUserAndOperationId).mockResolvedValue({
+      id: 'receipt-1',
+      userId: user.id,
+      deviceId: 'device-a',
+      operationId: 'op-duplicate',
+      entityType: 'record',
+      operationType: 'update',
+      entityId: '11111111-1111-4111-8111-111111111118',
+      outcome: 'accepted',
+      baseVersion: 1,
+      resultingVersion: 2,
+      currentVersion: null,
+      reasonCode: null,
+      message: null,
+      clientCreatedAt: new Date('2026-06-16T00:00:00.000Z'),
+      clientUpdatedAt: new Date('2026-06-16T01:00:00.000Z'),
+      entityUpdatedAt: new Date('2026-06-16T01:00:00.000Z'),
+      serverRecordedAt: new Date('2026-06-16T01:00:00.000Z'),
+      createdAt: new Date('2026-06-16T01:00:00.000Z'),
+      updatedAt: new Date('2026-06-16T01:00:00.000Z'),
+    });
+
+    const result = await pushSyncOperationsForUser(user, {
+      deviceId: 'device-a',
+      operations: [
+        {
+          operationId: 'op-duplicate',
+          entityType: 'record',
+          operationType: 'update',
+          entityId: '11111111-1111-4111-8111-111111111118',
+          baseVersion: 1,
+          payload: {
+            note: '補記',
+          },
+          clientCreatedAt: '2026-06-16T00:00:00.000Z',
+          clientUpdatedAt: '2026-06-16T01:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.accepted).toHaveLength(1);
+    expect(result.diagnostics.duplicateOperationCount).toBe(1);
+  });
+
+  it('returns paged checkpoint for incremental pull windows', async () => {
+    vi.mocked(listSyncItemChangesByUserId).mockResolvedValue([
+      {
+        ...baseItem,
+        id: '11111111-1111-4111-8111-111111111111',
+        updatedAt: new Date('2026-06-16T03:00:00.000Z'),
+      },
+      {
+        ...baseItem,
+        id: '11111111-1111-4111-8111-111111111112',
+        updatedAt: new Date('2026-06-16T03:01:00.000Z'),
+      },
+    ]);
+    vi.mocked(listSyncRecordChangesByUserId).mockResolvedValue([]);
+
+    const result = await pullSyncChangesForUser(user, {
+      deviceId: 'device-a',
+      lastPulledAt: '2026-06-16T02:00:00.000Z',
+      checkpoint: {
+        limit: 1,
+      },
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.checkpoint.hasMore).toBe(true);
+    expect(result.checkpoint.nextCursor).toBeTruthy();
   });
 });

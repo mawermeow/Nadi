@@ -21,6 +21,11 @@
 - `sessions`、`accounts`、`verifications`
 - `device_account_links`
 
+目前新增 Phase 10 multi-device sync stabilization 所需結構：
+
+- `sync_device_sessions`
+- `sync_operation_receipts`
+
 ## Tables
 
 ### users
@@ -87,6 +92,50 @@
 | `linked_at` | `timestamptz` | First time this device was linked to the account. |
 | `last_seen_at` | `timestamptz` | Last sync or link activity seen by the server. |
 | `last_merged_at` | `timestamptz` | Last time local data merge was confirmed through account sync flow. |
+| `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
+
+### sync_device_sessions
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `user_id` | `uuid` | References `users.id`, cascade delete. |
+| `device_id` | `text` | Stable local device identifier. |
+| `last_seen_at` | `timestamptz` | Last time server saw this device perform sync activity. |
+| `last_sync_started_at` | `timestamptz` | Last push / pull start time. |
+| `last_sync_completed_at` | `timestamptz` | Last full sync completion time. |
+| `last_push_at` | `timestamptz` | Last push request time. |
+| `last_pull_at` | `timestamptz` | Last pull request time. |
+| `last_checkpoint_at` | `timestamptz` | Current incremental pull watermark. |
+| `last_checkpoint_cursor` | `text` | Current incremental pull cursor for paged continuation. |
+| `last_sync_status` | `sync_session_status` | `idle` / `syncing` / `synced` / `conflict` / `failed`. |
+| `last_error_code` | `text` | Last sync-level error code without private payload. |
+| `last_error_at` | `timestamptz` | Last time a sync-level error was recorded. |
+| `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
+
+### sync_operation_receipts
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `user_id` | `uuid` | References `users.id`, cascade delete. |
+| `device_id` | `text` | Source device of the sync operation. |
+| `operation_id` | `text` | Client-generated sync operation id for idempotency. |
+| `entity_type` | `text` | `item` or `record`. |
+| `operation_type` | `text` | `create` / `update` / `delete`. |
+| `entity_id` | `uuid` | Target entity id. |
+| `outcome` | `sync_operation_outcome` | `accepted` / `rejected` / `conflict`. |
+| `base_version` | `integer` | Client-reported base version. |
+| `resulting_version` | `integer` | Server version after accepted write. |
+| `current_version` | `integer` | Server version seen when conflict was recorded. |
+| `reason_code` | `text` | Rejection or conflict code. |
+| `message` | `text` | Human-readable sync result summary, 不含私人紀錄內容。 |
+| `client_created_at` | `timestamptz` | Client operation creation time. |
+| `client_updated_at` | `timestamptz` | Client operation update time. |
+| `entity_updated_at` | `timestamptz` | Server entity update time at receipt capture. |
+| `server_recorded_at` | `timestamptz` | Receipt record time on server. |
 | `created_at` | `timestamptz` | Creation timestamp. |
 | `updated_at` | `timestamptz` | Last update timestamp. |
 
@@ -168,6 +217,10 @@ Record constraints:
 - `device_account_links_device_id_idx`
 - `device_account_links_user_id_idx`
 - `device_account_links_last_seen_at_idx`
+- `sync_device_sessions_user_device_idx`
+- `sync_device_sessions_user_status_idx`
+- `sync_device_sessions_user_checkpoint_idx`
+- `sync_device_sessions_last_seen_at_idx`
 - `items_user_id_idx`
 - `items_user_type_idx`
 - `items_user_archived_idx`
@@ -184,6 +237,10 @@ Record constraints:
 - `records_user_deleted_at_idx`
 - `records_user_device_id_idx`
 - `records_user_version_idx`
+- `sync_operation_receipts_user_operation_idx`
+- `sync_operation_receipts_user_device_recorded_idx`
+- `sync_operation_receipts_user_entity_idx`
+- `sync_operation_receipts_user_outcome_idx`
 - `report_snapshots_user_range_idx`
 
 ## Current Semantics
@@ -193,6 +250,8 @@ Record constraints:
 - `version` 現在已被 items / records update API 使用於 version check
 - `device_id` 現在會由 local device id 帶入 sync push / pull
 - `device_account_links` 用來記錄哪台裝置已被哪個帳號接管同步身份
+- `sync_device_sessions` 用來保存每台裝置最近的 sync session、checkpoint 與 recovery 訊號
+- `sync_operation_receipts` 用來保存 sync operation receipt，提供 server-side idempotency 與 conflict traceability
 - `archived` 與 `deleted_at` 不同
 - `archived` 是產品層停用狀態
 - `deleted_at` 是同步層 soft delete 狀態

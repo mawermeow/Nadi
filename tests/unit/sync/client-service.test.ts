@@ -43,10 +43,17 @@ vi.mock('@/features/sync/device', () => ({
 }));
 
 vi.mock('@/features/sync/meta', () => ({
+  appendSyncDiagnosticEvent: vi.fn(),
+  clearPullCheckpoint: vi.fn(),
   getLinkedAccount: vi.fn(),
   getLastPulledAt: vi.fn(),
+  getPullCheckpoint: vi.fn(),
+  getSyncDiagnosticsEvents: vi.fn(),
+  getStoredDeviceSession: vi.fn(),
+  setPullCheckpoint: vi.fn(),
   setLastPulledAt: vi.fn(),
   setLastSyncedAt: vi.fn(),
+  setStoredDeviceSession: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/auth-client', () => ({
@@ -87,6 +94,9 @@ import { getOrCreateDeviceId } from '@/features/sync/device';
 import {
   getLastPulledAt,
   getLinkedAccount,
+  getPullCheckpoint,
+  getSyncDiagnosticsEvents,
+  getStoredDeviceSession,
   setLastPulledAt,
   setLastSyncedAt,
 } from '@/features/sync/meta';
@@ -124,6 +134,9 @@ describe('client sync service', () => {
     vi.mocked(getOrCreateDeviceId).mockResolvedValue('device-local');
     vi.mocked(isNavigatorOnline).mockReturnValue(true);
     vi.mocked(getLastPulledAt).mockResolvedValue(null);
+    vi.mocked(getPullCheckpoint).mockResolvedValue(null);
+    vi.mocked(getSyncDiagnosticsEvents).mockResolvedValue([]);
+    vi.mocked(getStoredDeviceSession).mockResolvedValue(null);
     vi.mocked(getLinkedAccount).mockResolvedValue({
       userId: 'user-1',
       email: 'local@nadi.dev',
@@ -164,6 +177,28 @@ describe('client sync service', () => {
       ],
       rejected: [],
       conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 1,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
       serverTime: '2026-06-16T02:00:00.000Z',
     });
 
@@ -219,6 +254,28 @@ describe('client sync service', () => {
         },
       ],
       conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'failed',
+        lastErrorCode: 'PAYLOAD_INVALID',
+        lastErrorAt: '2026-06-16T02:00:00.000Z',
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 1,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
       serverTime: '2026-06-16T02:00:00.000Z',
     });
 
@@ -262,6 +319,28 @@ describe('client sync service', () => {
           },
         },
       ],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'conflict',
+        lastErrorCode: 'SYNC_CONFLICT',
+        lastErrorAt: '2026-06-16T02:00:00.000Z',
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 1,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
       serverTime: '2026-06-16T02:00:00.000Z',
     });
 
@@ -320,6 +399,36 @@ describe('client sync service', () => {
         },
       ],
       tombstones: [],
+      checkpoint: {
+        since: null,
+        until: '2026-06-16T03:00:00.000Z',
+        nextCursor: null,
+        hasMore: false,
+        limit: 100,
+        returnedCount: 2,
+      },
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T03:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T03:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T03:00:00.000Z',
+        lastPushAt: null,
+        lastPullAt: '2026-06-16T03:00:00.000Z',
+        lastCheckpointAt: '2026-06-16T03:00:00.000Z',
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 1,
+        pulledRecordCount: 1,
+        pulledTombstoneCount: 0,
+      },
       serverTime: '2026-06-16T03:00:00.000Z',
     });
 
@@ -370,6 +479,36 @@ describe('client sync service', () => {
           updatedAt: '2026-06-16T04:00:00.000Z',
         },
       ],
+      checkpoint: {
+        since: null,
+        until: '2026-06-16T04:00:00.000Z',
+        nextCursor: null,
+        hasMore: false,
+        limit: 100,
+        returnedCount: 1,
+      },
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T04:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T04:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T04:00:00.000Z',
+        lastPushAt: null,
+        lastPullAt: '2026-06-16T04:00:00.000Z',
+        lastCheckpointAt: '2026-06-16T04:00:00.000Z',
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 1,
+      },
       serverTime: '2026-06-16T04:00:00.000Z',
     });
 
@@ -406,6 +545,28 @@ describe('client sync service', () => {
       accepted: [],
       rejected: [],
       conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T05:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T05:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T05:00:00.000Z',
+        lastPushAt: '2026-06-16T05:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
       serverTime: '2026-06-16T05:00:00.000Z',
     });
 
@@ -433,6 +594,36 @@ describe('client sync service', () => {
       items: [],
       records: [],
       tombstones: [],
+      checkpoint: {
+        since: null,
+        until: '2026-06-16T06:00:00.000Z',
+        nextCursor: null,
+        hasMore: false,
+        limit: 100,
+        returnedCount: 0,
+      },
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T06:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T06:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T06:00:00.000Z',
+        lastPushAt: null,
+        lastPullAt: '2026-06-16T06:00:00.000Z',
+        lastCheckpointAt: '2026-06-16T06:00:00.000Z',
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
       serverTime: '2026-06-16T06:00:00.000Z',
     });
 
@@ -440,5 +631,76 @@ describe('client sync service', () => {
 
     expect(setLastSyncedAt).toHaveBeenCalledWith('2026-06-16T06:00:00.000Z');
     expect(getSyncState().status).toBe('idle');
+  });
+
+  it('does not apply remote tombstone over pending local change', async () => {
+    vi.mocked(recordLocalRepository.getById).mockResolvedValue({
+      id: pendingOperation.entityId,
+      itemId: '11111111-1111-4111-8111-111111111111',
+      valueNumber: 6.5,
+      valueText: null,
+      valueBoolean: null,
+      recordedAt: '2026-06-16T01:00:00.000Z',
+      note: 'local pending',
+      syncStatus: 'pending',
+      createdAt: '2026-06-16T01:00:00.000Z',
+      updatedAt: '2026-06-16T01:10:00.000Z',
+      deletedAt: null,
+      version: 2,
+      lastSyncedAt: null,
+      deviceId: 'device-local',
+    });
+    vi.mocked(pullSyncChanges).mockResolvedValue({
+      items: [],
+      records: [],
+      tombstones: [
+        {
+          entityType: 'record',
+          entityId: pendingOperation.entityId,
+          deletedAt: '2026-06-16T07:00:00.000Z',
+          version: 3,
+          updatedAt: '2026-06-16T07:00:00.000Z',
+        },
+      ],
+      checkpoint: {
+        since: null,
+        until: '2026-06-16T07:00:00.000Z',
+        nextCursor: null,
+        hasMore: false,
+        limit: 100,
+        returnedCount: 1,
+      },
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T07:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T07:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T07:00:00.000Z',
+        lastPushAt: null,
+        lastPullAt: '2026-06-16T07:00:00.000Z',
+        lastCheckpointAt: '2026-06-16T07:00:00.000Z',
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 1,
+      },
+      serverTime: '2026-06-16T07:00:00.000Z',
+    });
+
+    await pullRemoteChanges();
+
+    expect(recordLocalRepository.upsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        deletedAt: '2026-06-16T07:00:00.000Z',
+      }),
+    );
   });
 });

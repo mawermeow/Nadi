@@ -1,4 +1,11 @@
-import type { Item, Record } from '@/db/schema';
+import { randomUUID } from 'node:crypto';
+
+import type {
+  Item,
+  Record,
+  SyncDeviceSession as DbSyncDeviceSession,
+  SyncOperationReceipt,
+} from '@/db/schema';
 import {
   ensureSessionUserRecord,
   recordDeviceSeenForUser,
@@ -9,7 +16,10 @@ import type { SessionUser } from '@/lib/auth/session';
 import type {
   SyncAcceptedOperation,
   SyncConflict,
+  SyncDeviceSession,
+  SyncDiagnostics,
   SyncItemEntity,
+  SyncPullCheckpoint,
   SyncPullResponse,
   SyncPushResponse,
   SyncRecordEntity,
@@ -20,6 +30,7 @@ import type {
   SyncItemCreatePayload,
   SyncItemUpdatePayload,
   SyncOperationInput,
+  SyncPullCheckpointInput,
   SyncPullRequestInput,
   SyncPushRequestInput,
   SyncRecordCreatePayload,
@@ -30,10 +41,14 @@ import {
   createSyncRecordRecord,
   findSyncItemById,
   findSyncItemByIdForUser,
+  findSyncDeviceSessionByUserAndDeviceId,
+  findSyncOperationReceiptByUserAndOperationId,
   findSyncRecordById,
   findSyncRecordByIdForUser,
-  listSyncItemsByUserId,
-  listSyncRecordsByUserId,
+  listSyncItemChangesByUserId,
+  listSyncRecordChangesByUserId,
+  upsertSyncDeviceSession,
+  upsertSyncOperationReceipt,
   updateSyncItemRecord,
   updateSyncRecordRecord,
 } from './repository';
@@ -95,6 +110,113 @@ function mapRecordTombstone(record: Record): SyncTombstone {
   };
 }
 
+function mapSyncDeviceSessionEntity(
+  session: DbSyncDeviceSession,
+): SyncDeviceSession {
+  return {
+    deviceId: session.deviceId,
+    lastSeenAt: session.lastSeenAt.toISOString(),
+    lastSyncStartedAt: session.lastSyncStartedAt?.toISOString() ?? null,
+    lastSyncCompletedAt: session.lastSyncCompletedAt?.toISOString() ?? null,
+    lastPushAt: session.lastPushAt?.toISOString() ?? null,
+    lastPullAt: session.lastPullAt?.toISOString() ?? null,
+    lastCheckpointAt: session.lastCheckpointAt?.toISOString() ?? null,
+    lastCheckpointCursor: session.lastCheckpointCursor,
+    lastSyncStatus: session.lastSyncStatus,
+    lastErrorCode: session.lastErrorCode,
+    lastErrorAt: session.lastErrorAt?.toISOString() ?? null,
+  };
+}
+
+function createDiagnosticsSummary(
+  input?: Partial<SyncDiagnostics>,
+): SyncDiagnostics {
+  return {
+    duplicateOperationCount: input?.duplicateOperationCount ?? 0,
+    acceptedOperationCount: input?.acceptedOperationCount ?? 0,
+    rejectedOperationCount: input?.rejectedOperationCount ?? 0,
+    conflictOperationCount: input?.conflictOperationCount ?? 0,
+    pulledItemCount: input?.pulledItemCount ?? 0,
+    pulledRecordCount: input?.pulledRecordCount ?? 0,
+    pulledTombstoneCount: input?.pulledTombstoneCount ?? 0,
+  };
+}
+
+type SyncCursorToken = {
+  updatedAt: string;
+  entityType: 'item' | 'record';
+  entityId: string;
+};
+
+type CombinedSyncChange = {
+  entityType: 'item' | 'record';
+  entity: Item | Record;
+};
+
+function createCursorToken(change: CombinedSyncChange): string {
+  const updatedAt = change.entity.updatedAt.toISOString();
+  return JSON.stringify({
+    updatedAt,
+    entityType: change.entityType,
+    entityId: change.entity.id,
+  } satisfies SyncCursorToken);
+}
+
+function parseCursorToken(cursor: string): SyncCursorToken | null {
+  try {
+    const parsed = JSON.parse(cursor) as SyncCursorToken;
+
+    if (
+      typeof parsed.updatedAt !== 'string' ||
+      (parsed.entityType !== 'item' && parsed.entityType !== 'record') ||
+      typeof parsed.entityId !== 'string'
+    ) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function compareSyncChanges(left: CombinedSyncChange, right: CombinedSyncChange) {
+  const updatedAtCompare =
+    left.entity.updatedAt.getTime() - right.entity.updatedAt.getTime();
+
+  if (updatedAtCompare !== 0) {
+    return updatedAtCompare;
+  }
+
+  if (left.entityType !== right.entityType) {
+    return left.entityType.localeCompare(right.entityType);
+  }
+
+  return left.entity.id.localeCompare(right.entity.id);
+}
+
+function isAfterCursor(
+  change: CombinedSyncChange,
+  cursor: SyncCursorToken | null,
+) {
+  if (!cursor) {
+    return true;
+  }
+
+  const updatedAtCompare =
+    change.entity.updatedAt.getTime() - new Date(cursor.updatedAt).getTime();
+
+  if (updatedAtCompare !== 0) {
+    return updatedAtCompare > 0;
+  }
+
+  if (change.entityType !== cursor.entityType) {
+    return change.entityType.localeCompare(cursor.entityType) > 0;
+  }
+
+  return change.entity.id.localeCompare(cursor.entityId) > 0;
+}
+
 function createAcceptedOperation(
   operation: SyncOperationInput,
   version: number,
@@ -139,6 +261,208 @@ function createConflict(
     currentVersion,
     serverEntity,
   };
+}
+
+async function saveAcceptedReceipt(
+  user: SessionUser,
+  deviceId: string,
+  operation: SyncOperationInput,
+  accepted: SyncAcceptedOperation,
+) {
+  await upsertSyncOperationReceipt({
+    id: randomUUID(),
+    userId: user.id,
+    deviceId,
+    operationId: operation.operationId,
+    entityType: operation.entityType,
+    operationType: operation.operationType,
+    entityId: operation.entityId,
+    outcome: 'accepted',
+    baseVersion: operation.baseVersion ?? null,
+    resultingVersion: accepted.version,
+    currentVersion: null,
+    reasonCode: null,
+    message: null,
+    clientCreatedAt: new Date(operation.clientCreatedAt),
+    clientUpdatedAt: new Date(operation.clientUpdatedAt),
+    entityUpdatedAt: new Date(accepted.updatedAt),
+    serverRecordedAt: new Date(),
+  });
+}
+
+async function saveRejectedReceipt(
+  user: SessionUser,
+  deviceId: string,
+  operation: SyncOperationInput,
+  rejected: SyncRejectedOperation,
+) {
+  await upsertSyncOperationReceipt({
+    id: randomUUID(),
+    userId: user.id,
+    deviceId,
+    operationId: operation.operationId,
+    entityType: operation.entityType,
+    operationType: operation.operationType,
+    entityId: operation.entityId,
+    outcome: 'rejected',
+    baseVersion: operation.baseVersion ?? null,
+    resultingVersion: null,
+    currentVersion: null,
+    reasonCode: rejected.reason,
+    message: rejected.message,
+    clientCreatedAt: new Date(operation.clientCreatedAt),
+    clientUpdatedAt: new Date(operation.clientUpdatedAt),
+    entityUpdatedAt: null,
+    serverRecordedAt: new Date(),
+  });
+}
+
+async function saveConflictReceipt(
+  user: SessionUser,
+  deviceId: string,
+  operation: SyncOperationInput,
+  conflict: SyncConflict,
+) {
+  await upsertSyncOperationReceipt({
+    id: randomUUID(),
+    userId: user.id,
+    deviceId,
+    operationId: operation.operationId,
+    entityType: operation.entityType,
+    operationType: operation.operationType,
+    entityId: operation.entityId,
+    outcome: 'conflict',
+    baseVersion: operation.baseVersion ?? null,
+    resultingVersion: null,
+    currentVersion: conflict.currentVersion,
+    reasonCode: 'VERSION_CONFLICT',
+    message: `baseVersion ${conflict.baseVersion} 與 currentVersion ${conflict.currentVersion} 不一致`,
+    clientCreatedAt: new Date(operation.clientCreatedAt),
+    clientUpdatedAt: new Date(operation.clientUpdatedAt),
+    entityUpdatedAt: new Date(conflict.serverEntity.updatedAt),
+    serverRecordedAt: new Date(),
+  });
+}
+
+async function resolveDuplicateReceipt(
+  user: SessionUser,
+  receipt: SyncOperationReceipt,
+): Promise<
+  | { type: 'accepted'; accepted: SyncAcceptedOperation }
+  | { type: 'rejected'; rejected: SyncRejectedOperation }
+  | { type: 'conflict'; conflict: SyncConflict }
+  | null
+> {
+  if (receipt.outcome === 'accepted') {
+    return {
+      type: 'accepted',
+      accepted: {
+        operationId: receipt.operationId,
+        entityType: receipt.entityType as SyncOperationInput['entityType'],
+        operationType: receipt.operationType as SyncOperationInput['operationType'],
+        entityId: receipt.entityId,
+        version: receipt.resultingVersion ?? 1,
+        updatedAt:
+          receipt.entityUpdatedAt?.toISOString() ??
+          receipt.serverRecordedAt.toISOString(),
+      },
+    };
+  }
+
+  if (receipt.outcome === 'rejected') {
+    return {
+      type: 'rejected',
+      rejected: {
+        operationId: receipt.operationId,
+        entityType: receipt.entityType as SyncOperationInput['entityType'],
+        operationType: receipt.operationType as SyncOperationInput['operationType'],
+        entityId: receipt.entityId,
+        reason: receipt.reasonCode ?? 'SYNC_REJECTED',
+        message: receipt.message ?? '這筆同步操作已被拒絕',
+      },
+    };
+  }
+
+  if (receipt.entityType === 'item') {
+    const item = await findSyncItemByIdForUser(receipt.entityId, user.id);
+
+    if (!item) {
+      return null;
+    }
+
+    return {
+      type: 'conflict',
+      conflict: {
+        operationId: receipt.operationId,
+        entityType: 'item',
+        operationType: receipt.operationType as SyncOperationInput['operationType'],
+        entityId: receipt.entityId,
+        baseVersion: receipt.baseVersion ?? 0,
+        currentVersion: item.version,
+        serverEntity: mapSyncItemEntity(item),
+      },
+    };
+  }
+
+  const record = await findSyncRecordByIdForUser(receipt.entityId, user.id);
+
+  if (!record) {
+    return null;
+  }
+
+  return {
+    type: 'conflict',
+    conflict: {
+      operationId: receipt.operationId,
+      entityType: 'record',
+      operationType: receipt.operationType as SyncOperationInput['operationType'],
+      entityId: receipt.entityId,
+      baseVersion: receipt.baseVersion ?? 0,
+      currentVersion: record.version,
+      serverEntity: mapSyncRecordEntity(record),
+    },
+  };
+}
+
+async function upsertDeviceSessionState(input: {
+  user: SessionUser;
+  deviceId: string;
+  serverTime: Date;
+  status: SyncDeviceSession['lastSyncStatus'];
+  startedAt?: Date | null;
+  completedAt?: Date | null;
+  pushAt?: Date | null;
+  pullAt?: Date | null;
+  checkpointAt?: Date | null;
+  checkpointCursor?: string | null;
+  errorCode?: string | null;
+}) {
+  const existingSession = await findSyncDeviceSessionByUserAndDeviceId(
+    input.user.id,
+    input.deviceId,
+  );
+
+  return upsertSyncDeviceSession({
+    id: existingSession?.id ?? randomUUID(),
+    userId: input.user.id,
+    deviceId: input.deviceId,
+    lastSeenAt: input.serverTime,
+    lastSyncStartedAt:
+      input.startedAt ?? existingSession?.lastSyncStartedAt ?? null,
+    lastSyncCompletedAt:
+      input.completedAt ?? existingSession?.lastSyncCompletedAt ?? null,
+    lastPushAt: input.pushAt ?? existingSession?.lastPushAt ?? null,
+    lastPullAt: input.pullAt ?? existingSession?.lastPullAt ?? null,
+    lastCheckpointAt:
+      input.checkpointAt ?? existingSession?.lastCheckpointAt ?? null,
+    lastCheckpointCursor:
+      input.checkpointCursor ?? existingSession?.lastCheckpointCursor ?? null,
+    lastSyncStatus: input.status,
+    lastErrorCode: input.errorCode ?? null,
+    lastErrorAt: input.errorCode ? input.serverTime : null,
+    createdAt: existingSession?.createdAt ?? input.serverTime,
+    updatedAt: input.serverTime,
+  });
 }
 
 function assertScaleConfig(
@@ -621,11 +945,41 @@ export async function pushSyncOperationsForUser(
   });
 
   const serverTime = new Date();
+  await upsertDeviceSessionState({
+    user,
+    deviceId: input.deviceId,
+    serverTime,
+    status: 'syncing',
+    startedAt: serverTime,
+    pushAt: serverTime,
+  });
+
   const accepted: SyncAcceptedOperation[] = [];
   const rejected: SyncRejectedOperation[] = [];
   const conflicts: SyncConflict[] = [];
+  let duplicateOperationCount = 0;
 
   for (const operation of input.operations) {
+    const existingReceipt = await findSyncOperationReceiptByUserAndOperationId(
+      user.id,
+      operation.operationId,
+    );
+
+    if (existingReceipt) {
+      duplicateOperationCount += 1;
+      const duplicateResult = await resolveDuplicateReceipt(user, existingReceipt);
+
+      if (duplicateResult?.type === 'accepted') {
+        accepted.push(duplicateResult.accepted);
+      } else if (duplicateResult?.type === 'conflict') {
+        conflicts.push(duplicateResult.conflict);
+      } else if (duplicateResult?.type === 'rejected') {
+        rejected.push(duplicateResult.rejected);
+      }
+
+      continue;
+    }
+
     if (operation.entityType === 'item' && operation.operationType === 'create') {
       const result = await handlePushItemCreate(
         user,
@@ -637,8 +991,10 @@ export async function pushSyncOperationsForUser(
 
       if (result.type === 'accepted') {
         accepted.push(result.accepted);
+        await saveAcceptedReceipt(user, input.deviceId, operation, result.accepted);
       } else {
         rejected.push(result.rejected);
+        await saveRejectedReceipt(user, input.deviceId, operation, result.rejected);
       }
       continue;
     }
@@ -654,10 +1010,13 @@ export async function pushSyncOperationsForUser(
 
       if (result.type === 'accepted') {
         accepted.push(result.accepted);
+        await saveAcceptedReceipt(user, input.deviceId, operation, result.accepted);
       } else if (result.type === 'conflict') {
         conflicts.push(result.conflict);
+        await saveConflictReceipt(user, input.deviceId, operation, result.conflict);
       } else {
         rejected.push(result.rejected);
+        await saveRejectedReceipt(user, input.deviceId, operation, result.rejected);
       }
       continue;
     }
@@ -672,10 +1031,13 @@ export async function pushSyncOperationsForUser(
 
       if (result.type === 'accepted') {
         accepted.push(result.accepted);
+        await saveAcceptedReceipt(user, input.deviceId, operation, result.accepted);
       } else if (result.type === 'conflict') {
         conflicts.push(result.conflict);
+        await saveConflictReceipt(user, input.deviceId, operation, result.conflict);
       } else {
         rejected.push(result.rejected);
+        await saveRejectedReceipt(user, input.deviceId, operation, result.rejected);
       }
       continue;
     }
@@ -691,8 +1053,10 @@ export async function pushSyncOperationsForUser(
 
       if (result.type === 'accepted') {
         accepted.push(result.accepted);
+        await saveAcceptedReceipt(user, input.deviceId, operation, result.accepted);
       } else {
         rejected.push(result.rejected);
+        await saveRejectedReceipt(user, input.deviceId, operation, result.rejected);
       }
       continue;
     }
@@ -708,10 +1072,13 @@ export async function pushSyncOperationsForUser(
 
       if (result.type === 'accepted') {
         accepted.push(result.accepted);
+        await saveAcceptedReceipt(user, input.deviceId, operation, result.accepted);
       } else if (result.type === 'conflict') {
         conflicts.push(result.conflict);
+        await saveConflictReceipt(user, input.deviceId, operation, result.conflict);
       } else {
         rejected.push(result.rejected);
+        await saveRejectedReceipt(user, input.deviceId, operation, result.rejected);
       }
       continue;
     }
@@ -725,17 +1092,48 @@ export async function pushSyncOperationsForUser(
 
     if (result.type === 'accepted') {
       accepted.push(result.accepted);
+      await saveAcceptedReceipt(user, input.deviceId, operation, result.accepted);
     } else if (result.type === 'conflict') {
       conflicts.push(result.conflict);
+      await saveConflictReceipt(user, input.deviceId, operation, result.conflict);
     } else {
       rejected.push(result.rejected);
+      await saveRejectedReceipt(user, input.deviceId, operation, result.rejected);
     }
   }
+
+  const session = await upsertDeviceSessionState({
+    user,
+    deviceId: input.deviceId,
+    serverTime,
+    status:
+      conflicts.length > 0
+        ? 'conflict'
+        : rejected.length > 0
+          ? 'failed'
+          : 'synced',
+    startedAt: serverTime,
+    completedAt: serverTime,
+    pushAt: serverTime,
+    errorCode:
+      conflicts.length > 0
+        ? 'SYNC_CONFLICT'
+        : rejected.length > 0
+          ? rejected[0]?.reason ?? 'SYNC_REJECTED'
+          : null,
+  });
 
   return {
     accepted,
     rejected,
     conflicts,
+    deviceSession: mapSyncDeviceSessionEntity(session),
+    diagnostics: createDiagnosticsSummary({
+      duplicateOperationCount,
+      acceptedOperationCount: accepted.length,
+      rejectedOperationCount: rejected.length,
+      conflictOperationCount: conflicts.length,
+    }),
     serverTime: serverTime.toISOString(),
   };
 }
@@ -751,12 +1149,84 @@ export async function pullSyncChangesForUser(
     markMerged: true,
   });
 
-  const lastPulledAt = input.lastPulledAt ? new Date(input.lastPulledAt) : undefined;
   const serverTime = new Date();
-  const [items, records] = await Promise.all([
-    listSyncItemsByUserId(user.id, lastPulledAt),
-    listSyncRecordsByUserId(user.id, lastPulledAt),
+  await upsertDeviceSessionState({
+    user,
+    deviceId: input.deviceId,
+    serverTime,
+    status: 'syncing',
+    startedAt: serverTime,
+    pullAt: serverTime,
+  });
+
+  const since =
+    input.lastPulledAt !== undefined ? new Date(input.lastPulledAt) : undefined;
+  const until = input.checkpoint?.until
+    ? new Date(input.checkpoint.until)
+    : serverTime;
+  const limit = input.checkpoint?.limit ?? 100;
+  const cursor = input.checkpoint?.cursor
+    ? parseCursorToken(input.checkpoint.cursor)
+    : null;
+
+  const [itemChanges, recordChanges] = await Promise.all([
+    listSyncItemChangesByUserId(user.id, {
+      since,
+      until,
+    }),
+    listSyncRecordChangesByUserId(user.id, {
+      since,
+      until,
+    }),
   ]);
+
+  const combinedChanges: CombinedSyncChange[] = [
+    ...itemChanges.map((item) => ({ entityType: 'item' as const, entity: item })),
+    ...recordChanges.map((record) => ({
+      entityType: 'record' as const,
+      entity: record,
+    })),
+  ]
+    .sort(compareSyncChanges)
+    .filter((change) => isAfterCursor(change, cursor));
+
+  const pageChanges = combinedChanges.slice(0, limit);
+  const hasMore = combinedChanges.length > pageChanges.length;
+  const nextCursor =
+    hasMore && pageChanges.length > 0
+      ? createCursorToken(pageChanges[pageChanges.length - 1]!)
+      : null;
+
+  const items = pageChanges
+    .filter((change): change is { entityType: 'item'; entity: Item } => change.entityType === 'item')
+    .map((change) => change.entity);
+  const records = pageChanges
+    .filter(
+      (change): change is { entityType: 'record'; entity: Record } =>
+        change.entityType === 'record',
+    )
+    .map((change) => change.entity);
+
+  const checkpoint: SyncPullCheckpoint = {
+    since: input.lastPulledAt ?? null,
+    until: until.toISOString(),
+    nextCursor,
+    hasMore,
+    limit,
+    returnedCount: pageChanges.length,
+  };
+
+  const session = await upsertDeviceSessionState({
+    user,
+    deviceId: input.deviceId,
+    serverTime,
+    status: hasMore ? 'syncing' : 'synced',
+    startedAt: serverTime,
+    completedAt: hasMore ? null : serverTime,
+    pullAt: serverTime,
+    checkpointAt: until,
+    checkpointCursor: nextCursor,
+  });
 
   return {
     items: items.filter((item) => item.deletedAt === null).map(mapSyncItemEntity),
@@ -769,6 +1239,15 @@ export async function pullSyncChangesForUser(
         .filter((record) => record.deletedAt !== null)
         .map(mapRecordTombstone),
     ],
+    checkpoint,
+    deviceSession: mapSyncDeviceSessionEntity(session),
+    diagnostics: createDiagnosticsSummary({
+      pulledItemCount: items.filter((item) => item.deletedAt === null).length,
+      pulledRecordCount: records.filter((record) => record.deletedAt === null).length,
+      pulledTombstoneCount:
+        items.filter((item) => item.deletedAt !== null).length +
+        records.filter((record) => record.deletedAt !== null).length,
+    }),
     serverTime: serverTime.toISOString(),
   };
 }
