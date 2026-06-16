@@ -1284,7 +1284,7 @@ export function RecordDashboard({
   );
 
   const settingsPanel = (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-6">
+    <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
       <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
         <div>
           <h2 className="text-xl font-semibold">項目列表</h2>

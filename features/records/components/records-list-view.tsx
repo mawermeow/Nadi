@@ -7,5 +7,5 @@ type RecordsListViewProps = {
 };
 
 export function RecordsListView({ children }: RecordsListViewProps) {
-  return <div className="grid gap-4 lg:gap-6">{children}</div>;
+  return <div className="grid gap-6">{children}</div>;
 }

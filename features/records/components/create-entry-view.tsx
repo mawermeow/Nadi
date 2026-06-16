@@ -12,7 +12,7 @@ export function CreateEntryView({
   recordForm,
 }: CreateEntryViewProps) {
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)] lg:gap-6">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,0.94fr)_minmax(0,1.06fr)]">
       {recordForm}
       {itemForm}
     </div>

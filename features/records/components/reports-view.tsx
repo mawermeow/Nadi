@@ -9,7 +9,7 @@ type ReportsViewProps = {
 
 export function ReportsView({ correlation, summary }: ReportsViewProps) {
   return (
-    <div className="grid gap-4 lg:gap-6">
+    <div className="grid gap-6">
       {summary}
       {correlation}
     </div>

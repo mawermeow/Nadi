@@ -12,7 +12,7 @@ export function SettingsView({
   syncStatus,
 }: SettingsViewProps) {
   return (
-    <div className="grid gap-4 lg:gap-6">
+    <div className="grid gap-6">
       {syncStatus}
       {itemManagement}
     </div>
