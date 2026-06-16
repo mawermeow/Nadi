@@ -10,6 +10,10 @@
   --accent-soft: rgba(45, 106, 90, 0.12);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background:
     radial-gradient(circle at top right, rgba(45, 106, 90, 0.12), transparent 28%),
@@ -17,6 +21,7 @@ body {
   color: var(--foreground);
   font-family: "Avenir Next", "Segoe UI", sans-serif;
   -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 button,

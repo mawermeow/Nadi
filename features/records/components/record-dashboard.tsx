@@ -10,6 +10,7 @@ import type {
 } from '@/features/reports/api';
 import { CorrelationReportSection } from '@/features/reports/components/correlation-report-section';
 import { SummaryReportSection } from '@/features/reports/components/summary-report-section';
+import { SectionNav } from '@/features/records/components/section-nav';
 
 type RecordDashboardProps = {
   initialItems: ItemResponse[];
@@ -68,11 +69,11 @@ const valueTypeOptions = [
   { value: 'text', label: '文字' },
 ] as const;
 const quickNavItems = [
-  { href: '#record-create', label: '新增紀錄' },
-  { href: '#timeline', label: '近期紀錄' },
-  { href: '#item-manage', label: '項目管理' },
-  { href: '#summary-report', label: '摘要' },
-  { href: '#correlation-report', label: '關聯' },
+  { id: 'record-create', label: '新增紀錄', shortLabel: '紀錄' },
+  { id: 'timeline', label: '近期紀錄', shortLabel: '列表' },
+  { id: 'item-manage', label: '項目管理', shortLabel: '項目' },
+  { id: 'summary-report', label: '摘要報表', shortLabel: '摘要' },
+  { id: 'correlation-report', label: '關聯觀察', shortLabel: '關聯' },
 ] as const;
 
 function getValueTypeLabel(valueType: ItemFormState['valueType']) {
@@ -457,62 +458,51 @@ export function RecordDashboard({
   }
 
   return (
-    <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-        <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_24px_80px_rgba(31,42,42,0.08)] sm:p-8">
+    <main className="min-h-screen px-3 py-4 pb-32 sm:px-5 sm:py-6 sm:pb-10 lg:px-6 lg:py-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5 lg:gap-6">
+        <section className="overflow-hidden rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_24px_80px_rgba(31,42,42,0.08)] sm:p-6 lg:p-8">
+          <div className="pointer-events-none absolute" />
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
             Nadi / Phase 6
           </p>
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h1 className="max-w-[12ch] text-[2rem] leading-[1.05] font-semibold tracking-tight sm:max-w-none sm:text-[2.5rem]">
                 觀察自己的日常訊號
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
+              <p className="mt-3 max-w-[32rem] text-sm leading-6 text-[var(--muted)] sm:text-[0.95rem]">
                 先記下今天的指標或症狀，再用摘要與關聯觀察慢慢整理。整體介面以手機操作與低摩擦流程為優先。
               </p>
             </div>
-            <div className="rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)]">
+            <div className="w-full rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)] sm:w-auto">
               目前使用者：{userEmail}
             </div>
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-4">
+          <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
               <p className="text-sm text-[var(--muted)]">啟用中項目</p>
-              <p className="mt-2 text-2xl font-semibold">{activeItems.length}</p>
+              <p className="mt-2 text-xl font-semibold sm:text-2xl">{activeItems.length}</p>
             </article>
-            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
               <p className="text-sm text-[var(--muted)]">近期紀錄</p>
-              <p className="mt-2 text-2xl font-semibold">{records.length}</p>
+              <p className="mt-2 text-xl font-semibold sm:text-2xl">{records.length}</p>
             </article>
-            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
               <p className="text-sm text-[var(--muted)]">症狀項目</p>
-              <p className="mt-2 text-2xl font-semibold text-rose-700">
+              <p className="mt-2 text-xl font-semibold text-rose-700 sm:text-2xl">
                 {symptomItems.length}
               </p>
             </article>
           </div>
         </section>
 
-        <nav className="sticky top-3 z-20 -mx-1 overflow-x-auto px-1">
-          <div className="flex min-w-max gap-2 rounded-[1.5rem] border border-[var(--line)] bg-white/85 p-2 shadow-[0_10px_30px_rgba(31,42,42,0.08)] backdrop-blur">
-            {quickNavItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-sm font-medium whitespace-nowrap text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
-        </nav>
+        <SectionNav items={[...quickNavItems]} />
 
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:gap-6">
           <form
             id="record-create"
             onSubmit={handleCreateRecord}
-            className="scroll-mt-28 rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:scroll-mt-32 sm:p-6"
+            className="scroll-mt-24 rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:scroll-mt-28 sm:p-5 lg:p-6"
           >
             <div>
               <h2 className="text-xl font-semibold">新增紀錄</h2>
@@ -536,7 +526,7 @@ export function RecordDashboard({
                         key={option.value}
                         type="button"
                         onClick={() => updateRecordItemTypeTab(option.value)}
-                        className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(recordItemTypeTab, option.value)}`}
+                        className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(recordItemTypeTab, option.value)}`}
                       >
                         {option.label}
                       </button>
@@ -559,7 +549,7 @@ export function RecordDashboard({
                       onChange={(event) =>
                         updateRecordFormValue('itemId', event.target.value)
                       }
-                      className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                      className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                     >
                       {selectableRecordItems.map((item) => (
                         <option key={item.id} value={item.id}>
@@ -602,7 +592,7 @@ export function RecordDashboard({
                               event.target.value as 'true' | 'false',
                             )
                           }
-                          className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                          className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                         >
                           <option value="true">是</option>
                           <option value="false">否</option>
@@ -616,7 +606,7 @@ export function RecordDashboard({
                           onChange={(event) =>
                             updateRecordFormValue('valueText', event.target.value)
                           }
-                          className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                          className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                           placeholder={
                             selectedItem.valueType === 'text'
                               ? '輸入你想記下的內容'
@@ -650,7 +640,7 @@ export function RecordDashboard({
                     onChange={(event) =>
                       updateRecordFormValue('recordedAt', event.target.value)
                     }
-                    className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                    className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                   />
                   {recordFieldErrors.recordedAt?.[0] ? (
                     <span className="text-sm text-rose-700">
@@ -666,7 +656,7 @@ export function RecordDashboard({
                     onChange={(event) =>
                       updateRecordFormValue('note', event.target.value)
                     }
-                    className="min-h-24 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                    className="min-h-28 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                     placeholder="可留空，例如：午睡後、晚餐後"
                   />
                   {recordFieldErrors.note?.[0] ? (
@@ -696,7 +686,7 @@ export function RecordDashboard({
                 selectableRecordItems.length === 0 ||
                 isSubmittingRecord
               }
-              className="mt-5 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-5 min-h-12 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmittingRecord ? '儲存紀錄中…' : '儲存這筆紀錄'}
             </button>
@@ -709,7 +699,7 @@ export function RecordDashboard({
 
           <section
             id="timeline"
-            className="scroll-mt-28 rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:scroll-mt-32 sm:p-6"
+            className="scroll-mt-24 rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:scroll-mt-28 sm:p-5 lg:p-6"
           >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -723,7 +713,7 @@ export function RecordDashboard({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 lg:grid-cols-3">
               <div className="grid gap-2 sm:col-span-3">
                 <span className="text-sm font-medium">查詢類型</span>
                 <div className="grid grid-cols-2 gap-2">
@@ -732,7 +722,7 @@ export function RecordDashboard({
                       key={option.value}
                       type="button"
                       onClick={() => updateTimelineItemTypeTab(option.value)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(filterState.itemType, option.value)}`}
+                      className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(filterState.itemType, option.value)}`}
                     >
                       {option.label}
                     </button>
@@ -746,7 +736,7 @@ export function RecordDashboard({
                   onChange={(event) =>
                     updateFilterValue('itemId', event.target.value)
                   }
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                  className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 >
                   <option value="">
                     全部{filterState.itemType === 'metric' ? '指標' : '症狀'}
@@ -767,7 +757,7 @@ export function RecordDashboard({
                   onChange={(event) =>
                     updateFilterValue('from', event.target.value)
                   }
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                  className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 />
               </label>
               <label className="grid gap-2">
@@ -776,7 +766,7 @@ export function RecordDashboard({
                   type="date"
                   value={filterState.to}
                   onChange={(event) => updateFilterValue('to', event.target.value)}
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                  className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 />
               </label>
             </div>
@@ -786,7 +776,7 @@ export function RecordDashboard({
                 type="button"
                 onClick={fetchTimeline}
                 disabled={isLoadingTimeline}
-                className="rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className="min-h-12 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {isLoadingTimeline ? '整理紀錄中…' : '套用條件'}
               </button>
@@ -802,7 +792,7 @@ export function RecordDashboard({
                   setTimelineError(null);
                   setRecords(initialRecords);
                 }}
-                className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
+                className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
               >
                 回到近期列表
               </button>
@@ -842,7 +832,7 @@ export function RecordDashboard({
                     key={record.id}
                     className={`rounded-2xl border p-4 ${getRecordCardClass(record.itemType)}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-base font-semibold">
@@ -880,7 +870,7 @@ export function RecordDashboard({
                         type="button"
                         onClick={() => deleteRecord(record.id)}
                         disabled={isDeletingRecord}
-                        className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
+                        className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium sm:self-start"
                       >
                         {isDeletingRecord ? '處理中…' : '刪除'}
                       </button>
@@ -894,11 +884,11 @@ export function RecordDashboard({
 
         <section
           id="item-manage"
-          className="scroll-mt-28 grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] sm:scroll-mt-32"
+          className="scroll-mt-24 grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-6 sm:scroll-mt-28"
         >
           <form
             onSubmit={handleCreateItem}
-            className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6"
+            className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6"
           >
             <div>
               <h2 className="text-xl font-semibold">新增項目</h2>
@@ -933,7 +923,7 @@ export function RecordDashboard({
                       key={option.value}
                       type="button"
                       onClick={() => updateItemFormValue('type', option.value)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(itemFormState.type, option.value)}`}
+                      className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(itemFormState.type, option.value)}`}
                     >
                       {option.label}
                     </button>
@@ -951,7 +941,7 @@ export function RecordDashboard({
                       event.target.value as ItemFormState['valueType'],
                     )
                   }
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                  className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 >
                   {valueTypeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -973,7 +963,7 @@ export function RecordDashboard({
                   onChange={(event) =>
                     updateItemFormValue('unit', event.target.value)
                   }
-                  className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                  className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                   placeholder="例如：小時、杯、次"
                 />
                 {itemFieldErrors.unit?.[0] ? (
@@ -993,7 +983,7 @@ export function RecordDashboard({
                       onChange={(event) =>
                         updateItemFormValue('scaleMin', event.target.value)
                       }
-                      className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                      className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                       placeholder="0"
                     />
                     {itemFieldErrors.scaleMin?.[0] ? (
@@ -1010,7 +1000,7 @@ export function RecordDashboard({
                       onChange={(event) =>
                         updateItemFormValue('scaleMax', event.target.value)
                       }
-                      className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                      className="min-h-12 rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                       placeholder="10"
                     />
                     {itemFieldErrors.scaleMax?.[0] ? (
@@ -1037,7 +1027,7 @@ export function RecordDashboard({
             <button
               type="submit"
               disabled={isSubmittingItem}
-              className="mt-5 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-5 min-h-12 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmittingItem ? '建立項目中…' : '建立新項目'}
             </button>
@@ -1048,7 +1038,7 @@ export function RecordDashboard({
             ) : null}
           </form>
 
-          <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
+          <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">項目列表</h2>
@@ -1102,7 +1092,7 @@ export function RecordDashboard({
                         type="button"
                         onClick={() => toggleArchive(item, true)}
                         disabled={isMutatingItem}
-                        className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-[var(--foreground)]"
+                        className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-[var(--foreground)] sm:self-start"
                       >
                         {isMutatingItem ? '處理中…' : '封存'}
                       </button>
@@ -1137,7 +1127,7 @@ export function RecordDashboard({
                             type="button"
                             onClick={() => toggleArchive(item, false)}
                             disabled={isMutatingItem}
-                            className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
+                            className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium sm:self-start"
                           >
                             {isMutatingItem ? '處理中…' : '恢復'}
                           </button>
@@ -1151,14 +1141,14 @@ export function RecordDashboard({
           </section>
         </section>
 
-        <div id="summary-report" className="scroll-mt-28 sm:scroll-mt-32">
+        <div id="summary-report" className="scroll-mt-24 sm:scroll-mt-28">
           <SummaryReportSection
             initialReport={initialSummaryReport}
             maxRangeDays={maxReportRangeDays}
           />
         </div>
 
-        <div id="correlation-report" className="scroll-mt-28 sm:scroll-mt-32">
+        <div id="correlation-report" className="scroll-mt-24 sm:scroll-mt-28">
           <CorrelationReportSection
             initialReport={{
               ...initialCorrelationReport,

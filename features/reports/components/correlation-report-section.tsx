@@ -135,7 +135,7 @@ export function CorrelationReportSection({
   }
 
   return (
-    <section className="rounded-[1.75rem] border border-rose-100 bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
+    <section className="rounded-[1.75rem] border border-rose-100 bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-rose-700">關聯觀察</h2>
@@ -154,7 +154,7 @@ export function CorrelationReportSection({
         </div>
       ) : (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
             <label className="grid gap-2 sm:col-span-2">
               <span className="text-sm font-medium">分析目標症狀</span>
               <select
@@ -203,7 +203,7 @@ export function CorrelationReportSection({
                     key={windowHours}
                     type="button"
                     onClick={() => updateFilter('windowHours', windowHours)}
-                    className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                    className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
                       isActive
                         ? 'border-rose-400 bg-rose-500 text-white'
                         : 'border-[var(--line)] bg-white text-[var(--foreground)]'
@@ -221,7 +221,7 @@ export function CorrelationReportSection({
               type="button"
               onClick={fetchReport}
               disabled={isLoading || !effectiveSymptomItemId}
-              className="rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+              className="min-h-12 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
             >
               {isLoading ? '整理關聯中…' : '更新觀察'}
             </button>
@@ -229,7 +229,7 @@ export function CorrelationReportSection({
               type="button"
               onClick={resetFilter}
               disabled={isLoading}
-              className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
+              className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
             >
               回到預設條件
             </button>
@@ -261,19 +261,19 @@ export function CorrelationReportSection({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <p className="text-sm text-[var(--muted)]">症狀事件數</p>
               <p className="mt-2 text-2xl font-semibold text-rose-700">
                 {report.symptomSampleSize}
               </p>
             </article>
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <p className="text-sm text-[var(--muted)]">最小樣本門檻</p>
               <p className="mt-2 text-2xl font-semibold">
                 {report.minimumSampleSize}
               </p>
             </article>
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <p className="text-sm text-[var(--muted)]">目前窗口</p>
               <p className="mt-2 text-sm font-medium leading-6">
                 前 {report.windowHours} 小時
@@ -290,9 +290,9 @@ export function CorrelationReportSection({
               {report.candidates.map((candidate) => (
                 <article
                   key={candidate.itemId}
-                  className="rounded-2xl border border-[var(--line)] bg-white p-4"
+                  className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold">{candidate.title}</h3>

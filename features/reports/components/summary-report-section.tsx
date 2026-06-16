@@ -94,7 +94,7 @@ export function SummaryReportSection({
   }
 
   return (
-    <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
+    <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold">摘要報表</h2>
@@ -107,7 +107,7 @@ export function SummaryReportSection({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-medium">開始日期</span>
           <input
@@ -133,7 +133,7 @@ export function SummaryReportSection({
           type="button"
           onClick={fetchReport}
           disabled={isLoading}
-          className="rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="min-h-12 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
           {isLoading ? '整理摘要中…' : '更新摘要'}
         </button>
@@ -141,7 +141,7 @@ export function SummaryReportSection({
           type="button"
           onClick={resetFilter}
           disabled={isLoading}
-          className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
+          className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
         >
           回到預設區間
         </button>
@@ -166,17 +166,17 @@ export function SummaryReportSection({
       ) : (
         <div className="mt-6 grid gap-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <p className="text-sm text-[var(--muted)]">指標項目數</p>
               <p className="mt-2 text-2xl font-semibold">{report.metrics.length}</p>
             </article>
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <p className="text-sm text-[var(--muted)]">症狀項目數</p>
               <p className="mt-2 text-2xl font-semibold text-rose-700">
                 {report.symptoms.length}
               </p>
             </article>
-            <article className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <p className="text-sm text-[var(--muted)]">統計區間</p>
               <p className="mt-2 text-sm font-medium leading-6">
                 {filterState.from} 至 {filterState.to}
@@ -184,8 +184,8 @@ export function SummaryReportSection({
             </article>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section className="rounded-2xl border border-[var(--line)] bg-white p-4">
+          <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+            <section className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold">指標摘要</h3>
                 <span className="text-sm text-[var(--muted)]">以數量較多的項目排前面</span>
@@ -200,7 +200,7 @@ export function SummaryReportSection({
                   report.metrics.map((metric) => (
                     <article
                       key={metric.itemId}
-                      className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
+                      className="rounded-2xl border border-[var(--line)] bg-stone-50 p-3.5 sm:p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -253,7 +253,7 @@ export function SummaryReportSection({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[var(--line)] bg-white p-4">
+            <section className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-rose-700">症狀摘要</h3>
                 <span className="text-sm text-rose-600">保留觀察語氣，不做推論</span>
@@ -268,7 +268,7 @@ export function SummaryReportSection({
                   report.symptoms.map((symptom) => (
                     <article
                       key={symptom.itemId}
-                      className="rounded-2xl border border-rose-100 bg-rose-50/70 p-4"
+                      className="rounded-2xl border border-rose-100 bg-rose-50/70 p-3.5 sm:p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
