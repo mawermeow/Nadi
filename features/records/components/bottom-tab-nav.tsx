@@ -19,7 +19,7 @@ export function BottomTabNav({
   tabs,
 }: BottomTabNavProps) {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-white/94 px-3 pb-[calc(env(safe-area-inset-bottom)+0.7rem)] pt-2 shadow-[0_-14px_36px_rgba(31,42,42,0.12)] backdrop-blur md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--line)] bg-white/94 px-3 pb-[calc(env(safe-area-inset-bottom)+0.7rem)] pt-2 backdrop-blur lg:hidden">
       <div className="mx-auto grid max-w-md grid-cols-5 gap-2">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;

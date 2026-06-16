@@ -787,28 +787,6 @@ export function RecordDashboard({
         </section>
       );
 
-  const syncStatusPanel = (
-    <section className="rounded-[1.5rem] border border-[var(--line)] bg-white/88 px-4 py-3 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur">
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="font-medium text-[var(--foreground)]">
-          同步狀態：{syncStatusCard.statusLabel}
-        </span>
-        <span className="text-[var(--muted)]">
-          pending {syncState.pendingCount}
-        </span>
-        <span className="text-[var(--muted)]">
-          failed {syncState.failedCount}
-        </span>
-        <span className="text-[var(--muted)]">
-          conflict {syncState.conflictCount}
-        </span>
-        <span className="text-[var(--muted)]">
-          上次同步：{syncStatusCard.lastSyncAt}
-        </span>
-      </div>
-    </section>
-  );
-
   const recordForm = (
     <form
       onSubmit={handleCreateRecord}
@@ -1370,8 +1348,14 @@ export function RecordDashboard({
   return (
     <AppShell
       activeTab={activeTab}
-      headerStatus={syncStatusPanel}
       onTabChange={navigateToTab}
+      sidebarSyncSummary={{
+        statusLabel: syncStatusCard.statusLabel,
+        pendingCount: syncState.pendingCount,
+        failedCount: syncState.failedCount,
+        conflictCount: syncState.conflictCount,
+        lastSyncAt: syncStatusCard.lastSyncAt,
+      }}
       tabs={[...appTabs]}
     >
       {pageHeader}

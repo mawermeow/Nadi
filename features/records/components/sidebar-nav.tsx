@@ -5,12 +5,20 @@ import type { AppTabItem } from '@/features/records/components/bottom-tab-nav';
 type SidebarNavProps = {
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  syncSummary?: {
+    statusLabel: string;
+    pendingCount: number;
+    failedCount: number;
+    conflictCount: number;
+    lastSyncAt: string;
+  };
   tabs: AppTabItem[];
 };
 
 export function SidebarNav({
   activeTab,
   onTabChange,
+  syncSummary,
   tabs,
 }: SidebarNavProps) {
   return (
@@ -48,6 +56,21 @@ export function SidebarNav({
           );
         })}
       </nav>
+
+      {syncSummary ? (
+        <section className="mt-6 rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-4">
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+            Sync
+          </p>
+          <p className="mt-2 text-sm font-medium">{syncSummary.statusLabel}</p>
+          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+            pending {syncSummary.pendingCount} / failed {syncSummary.failedCount} / conflict {syncSummary.conflictCount}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+            上次同步：{syncSummary.lastSyncAt}
+          </p>
+        </section>
+      ) : null}
     </aside>
   );
 }
