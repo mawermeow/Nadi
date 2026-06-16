@@ -6,8 +6,7 @@ import { ActionButton } from '@/components/ui/action-button';
 import {
   ClockIcon,
   LoaderIcon,
-  RefreshIcon,
-  RotateCcwIcon,
+  SearchIcon, Undo2Icon,
 } from '@/components/ui/icons';
 import { Select } from '@/components/forms/select';
 import { TextInput } from '@/components/forms/text-input';
@@ -240,7 +239,7 @@ export function CorrelationReportSection({
               iconOnly
               disabled={isLoading || !effectiveSymptomItemId}
               icon={
-                isLoading ? <LoaderIcon size={18} /> : <RefreshIcon size={18} />
+                isLoading ? <LoaderIcon size={18} /> : <SearchIcon size={18} />
               }
               label={isLoading ? '整理關聯中…' : '更新觀察'}
               onClick={fetchReport}
@@ -250,7 +249,7 @@ export function CorrelationReportSection({
               variant="secondary"
               iconOnly
               disabled={isLoading}
-              icon={<RotateCcwIcon size={18} />}
+              icon={<Undo2Icon size={18} />}
               label="回到預設條件"
               onClick={resetFilter}
             />
