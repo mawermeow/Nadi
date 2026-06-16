@@ -44,7 +44,7 @@ export const reportTypeEnum = pgEnum('report_type', [
 export const users = pgTable(
   'users',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     email: text('email').notNull(),
     emailVerified: boolean('email_verified').notNull().default(false),
     name: text('name').notNull().default(''),
@@ -62,7 +62,7 @@ export const users = pgTable(
 export const sessions = pgTable(
   'sessions',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -87,7 +87,7 @@ export const sessions = pgTable(
 export const accounts = pgTable(
   'accounts',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     accountId: text('account_id').notNull(),
     providerId: text('provider_id').notNull(),
     userId: uuid('user_id')
@@ -123,7 +123,7 @@ export const accounts = pgTable(
 export const verifications = pgTable(
   'verifications',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     identifier: text('identifier').notNull(),
     value: text('value').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
@@ -143,7 +143,7 @@ export const verifications = pgTable(
 export const deviceAccountLinks = pgTable(
   'device_account_links',
   {
-    id: uuid('id').primaryKey(),
+    id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
