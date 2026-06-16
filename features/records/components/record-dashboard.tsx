@@ -98,9 +98,14 @@ export function RecordDashboard({
   maxReportRangeDays,
   userEmail,
 }: RecordDashboardProps) {
+  const initialRecordItemType =
+    initialItems.find((item) => !item.archived)?.type ?? 'metric';
   const [items, setItems] = useState(initialItems);
   const [records, setRecords] = useState(initialRecords);
   const [showArchived, setShowArchived] = useState(false);
+  const [recordItemTypeTab, setRecordItemTypeTab] = useState<
+    'metric' | 'symptom'
+  >(initialRecordItemType);
   const [itemFormState, setItemFormState] = useState(defaultItemFormState);
   const [recordFormState, setRecordFormState] = useState<RecordFormState>({
     itemId: initialItems.find((item) => !item.archived)?.id ?? '',
@@ -129,13 +134,19 @@ export function RecordDashboard({
     () => items.filter((item) => !item.archived),
     [items],
   );
+  const selectableRecordItems = useMemo(
+    () => activeItems.filter((item) => item.type === recordItemTypeTab),
+    [activeItems, recordItemTypeTab],
+  );
   const archivedItems = useMemo(
     () => items.filter((item) => item.archived),
     [items],
   );
   const selectedItem = useMemo(
-    () => activeItems.find((item) => item.id === recordFormState.itemId) ?? null,
-    [activeItems, recordFormState.itemId],
+    () =>
+      selectableRecordItems.find((item) => item.id === recordFormState.itemId) ??
+      null,
+    [recordFormState.itemId, selectableRecordItems],
   );
 
   function updateItemFormValue<Key extends keyof ItemFormState>(
@@ -165,6 +176,16 @@ export function RecordDashboard({
     setFilterState((currentState) => ({
       ...currentState,
       [key]: value,
+    }));
+  }
+
+  function updateRecordItemTypeTab(nextType: 'metric' | 'symptom') {
+    const nextSelectableItem = activeItems.find((item) => item.type === nextType);
+
+    setRecordItemTypeTab(nextType);
+    setRecordFormState((currentState) => ({
+      ...currentState,
+      itemId: nextSelectableItem?.id ?? '',
     }));
   }
 
@@ -202,9 +223,10 @@ export function RecordDashboard({
 
       setItems((currentItems) => [data, ...currentItems]);
       setItemFormState(defaultItemFormState);
+      setRecordItemTypeTab(data.type);
       setRecordFormState((currentState) => ({
         ...currentState,
-        itemId: currentState.itemId || data.id,
+        itemId: data.id,
       }));
     });
   }
@@ -387,22 +409,50 @@ export function RecordDashboard({
               </div>
             ) : (
               <div className="mt-5 grid gap-4">
+                <div className="grid gap-2">
+                  <span className="text-sm font-medium">紀錄類型</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {itemTypeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => updateRecordItemTypeTab(option.value)}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                          recordItemTypeTab === option.value
+                            ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                            : 'border-[var(--line)] bg-white text-[var(--foreground)]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <label className="grid gap-2">
                   <span className="text-sm font-medium">選擇項目</span>
-                  <select
-                    value={recordFormState.itemId}
-                    onChange={(event) =>
-                      updateRecordFormValue('itemId', event.target.value)
-                    }
-                    className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
-                  >
-                    {activeItems.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title}
-                        {item.unit ? ` (${item.unit})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  {selectableRecordItems.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-4 text-sm text-[var(--muted)]">
+                      目前沒有可用的
+                      {recordItemTypeTab === 'metric' ? '指標' : '症狀'}
+                      項目，請先在下方建立。
+                    </div>
+                  ) : (
+                    <select
+                      value={recordFormState.itemId}
+                      onChange={(event) =>
+                        updateRecordFormValue('itemId', event.target.value)
+                      }
+                      className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                    >
+                      {selectableRecordItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                          {item.unit ? ` (${item.unit})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   {recordFieldErrors.itemId?.[0] ? (
                     <span className="text-sm text-rose-700">
                       {recordFieldErrors.itemId[0]}
@@ -505,7 +555,11 @@ export function RecordDashboard({
 
             <button
               type="submit"
-              disabled={activeItems.length === 0 || isSubmittingRecord}
+              disabled={
+                activeItems.length === 0 ||
+                selectableRecordItems.length === 0 ||
+                isSubmittingRecord
+              }
               className="mt-5 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmittingRecord ? '建立中…' : '建立紀錄'}
