@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/features/items/local-repository', () => ({
   itemLocalRepository: {
+    getAll: vi.fn(),
     getById: vi.fn(),
     markConflict: vi.fn(),
     markFailed: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock('@/features/items/local-repository', () => ({
 
 vi.mock('@/features/records/local-repository', () => ({
   recordLocalRepository: {
+    getAll: vi.fn(),
     getById: vi.fn(),
     markConflict: vi.fn(),
     markFailed: vi.fn(),
@@ -41,9 +43,16 @@ vi.mock('@/features/sync/device', () => ({
 }));
 
 vi.mock('@/features/sync/meta', () => ({
+  getLinkedAccount: vi.fn(),
   getLastPulledAt: vi.fn(),
   setLastPulledAt: vi.fn(),
   setLastSyncedAt: vi.fn(),
+}));
+
+vi.mock('@/lib/auth/auth-client', () => ({
+  authClient: {
+    getSession: vi.fn(),
+  },
 }));
 
 vi.mock('@/features/sync/network', () => ({
@@ -75,10 +84,16 @@ import {
   runSync,
 } from '@/features/sync/client-service';
 import { getOrCreateDeviceId } from '@/features/sync/device';
-import { getLastPulledAt, setLastPulledAt, setLastSyncedAt } from '@/features/sync/meta';
+import {
+  getLastPulledAt,
+  getLinkedAccount,
+  setLastPulledAt,
+  setLastSyncedAt,
+} from '@/features/sync/meta';
 import { isNavigatorOnline } from '@/features/sync/network';
 import { getSyncState, resetSyncState } from '@/features/sync/state';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import { authClient } from '@/lib/auth/auth-client';
 
 const pendingOperation = {
   id: 'op-1',
@@ -109,8 +124,29 @@ describe('client sync service', () => {
     vi.mocked(getOrCreateDeviceId).mockResolvedValue('device-local');
     vi.mocked(isNavigatorOnline).mockReturnValue(true);
     vi.mocked(getLastPulledAt).mockResolvedValue(null);
+    vi.mocked(getLinkedAccount).mockResolvedValue({
+      userId: 'user-1',
+      email: 'local@nadi.dev',
+      linkedAt: '2026-06-16T00:00:00.000Z',
+    });
+    vi.mocked(authClient.getSession).mockResolvedValue({
+      data: {
+        session: {
+          id: 'session-1',
+        },
+        user: {
+          id: 'user-1',
+          email: 'local@nadi.dev',
+          name: 'Local User',
+          emailVerified: true,
+        },
+      },
+      error: null,
+    });
     vi.mocked(syncOperationRepository.getAll).mockResolvedValue([]);
     vi.mocked(syncOperationRepository.listFailed).mockResolvedValue([]);
+    vi.mocked(itemLocalRepository.getAll).mockResolvedValue([]);
+    vi.mocked(recordLocalRepository.getAll).mockResolvedValue([]);
   });
 
   it('pushes pending operations and marks them synced on success', async () => {
@@ -153,6 +189,19 @@ describe('client sync service', () => {
         lastSyncedAt: '2026-06-16T02:00:00.000Z',
       },
     );
+  });
+
+  it('skips cloud sync in anonymous local mode', async () => {
+    vi.mocked(authClient.getSession).mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    await runSync();
+
+    expect(pushSyncOperations).not.toHaveBeenCalled();
+    expect(pullSyncChanges).not.toHaveBeenCalled();
+    expect(getSyncState().lastError).toContain('本機模式');
   });
 
   it('marks rejected operations as failed', async () => {

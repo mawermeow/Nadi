@@ -1,3 +1,5 @@
+import { authClient } from '@/lib/auth/auth-client';
+import { getLinkedAccount } from '@/features/sync/meta';
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import {
@@ -30,6 +32,43 @@ function getSyncErrorMessage(error: unknown) {
   }
 
   return '同步失敗';
+}
+
+async function getAuthenticatedSessionUser() {
+  const result = await authClient.getSession();
+  return result.data?.user ?? null;
+}
+
+async function ensureLinkedSyncUser() {
+  const sessionUser = await getAuthenticatedSessionUser();
+
+  if (!sessionUser) {
+    setSyncState({
+      status: 'idle',
+      lastError: '目前為本機模式，登入並連結帳號後才會同步到雲端。',
+    });
+    return null;
+  }
+
+  const linkedAccount = await getLinkedAccount();
+
+  if (!linkedAccount) {
+    setSyncState({
+      status: 'idle',
+      lastError: '尚未連結這台裝置到帳號，本機資料目前不會自動上傳。',
+    });
+    return null;
+  }
+
+  if (linkedAccount.userId !== sessionUser.id) {
+    setSyncState({
+      status: 'error',
+      lastError: '這台裝置的本機資料目前綁定到另一個帳號，請先重新連結。',
+    });
+    return null;
+  }
+
+  return sessionUser;
 }
 
 async function refreshSyncCounts() {
@@ -227,6 +266,10 @@ export async function pushPendingOperations() {
     return null;
   }
 
+  if (!(await ensureLinkedSyncUser())) {
+    return null;
+  }
+
   const deviceId = await getOrCreateDeviceId();
   const allOperations = await syncOperationRepository.getAll();
   const operationsToPush = allOperations.filter(
@@ -276,6 +319,10 @@ export async function pullRemoteChanges() {
     return null;
   }
 
+  if (!(await ensureLinkedSyncUser())) {
+    return null;
+  }
+
   const deviceId = await getOrCreateDeviceId();
   const lastPulledAt = await getLastPulledAt();
   const response: SyncPullResponse = await pullSyncChangesRequest({
@@ -322,6 +369,10 @@ export async function runSync() {
       setSyncState({
         status: 'offline',
       });
+      return;
+    }
+
+    if (!(await ensureLinkedSyncUser())) {
       return;
     }
 

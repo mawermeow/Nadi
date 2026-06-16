@@ -8,6 +8,8 @@ import { DashboardView } from '@/features/records/components/dashboard-view';
 import { RecordsListView } from '@/features/records/components/records-list-view';
 import { ReportsView } from '@/features/records/components/reports-view';
 import { SettingsView } from '@/features/records/components/settings-view';
+import { AccountPanel } from '@/features/auth/components/account-panel';
+import { authClient } from '@/lib/auth/auth-client';
 import { ActionButton } from '@/components/ui/action-button';
 import { IconButton } from '@/components/ui/icon-button';
 import {
@@ -56,6 +58,7 @@ import { startForegroundSync, runSync } from '@/features/sync/client-service';
 import { getSyncState, subscribeSyncState, type SyncState } from '@/features/sync/state';
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
+import type { SessionUser } from '@/lib/auth/session';
 
 type RecordDashboardProps = {
   initialItems: ItemResponse[];
@@ -64,7 +67,7 @@ type RecordDashboardProps = {
   initialCorrelationReport: CorrelationReportResponse;
   maxReportRangeDays: number;
   defaultCorrelationWindowHours: number;
-  userEmail: string;
+  sessionUser: SessionUser | null;
 };
 
 type ItemFormState = {
@@ -241,8 +244,9 @@ export function RecordDashboard({
   initialCorrelationReport,
   maxReportRangeDays,
   defaultCorrelationWindowHours,
-  userEmail,
+  sessionUser,
 }: RecordDashboardProps) {
+  const { data: authSession } = authClient.useSession();
   const initialRecordItemType =
     initialItems.find((item) => !item.archived)?.type ?? 'metric';
   const [activeTab, setActiveTab] = useState<(typeof appTabs)[number]['id']>(
@@ -323,6 +327,17 @@ export function RecordDashboard({
       lastSyncAt: formatSyncTimestamp(syncState.lastSyncAt),
     };
   }, [syncState.lastSyncAt, syncState.status]);
+  const effectiveSessionUser = authSession?.user
+    ? {
+        id: authSession.user.id,
+        email: authSession.user.email,
+        name: authSession.user.name,
+        emailVerified: authSession.user.emailVerified,
+      }
+    : sessionUser;
+  const currentUserLabel =
+    effectiveSessionUser?.email ?? '尚未登入（本機模式）';
+  const requiresAuthForCloudFeatures = effectiveSessionUser === null;
 
   const loadLocalData = useCallback(
     async (options?: {
@@ -828,7 +843,7 @@ export function RecordDashboard({
               </h2>
             </div>
             <div className="w-full rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)] sm:w-auto">
-              目前使用者：{userEmail}
+              目前使用者：{currentUserLabel}
             </div>
           </div>
         </section>
@@ -1424,7 +1439,7 @@ export function RecordDashboard({
 
       {activeTab === 'dashboard' ? (
         <DashboardView
-          userEmail={userEmail}
+          userEmail={currentUserLabel}
           stats={
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
@@ -1483,6 +1498,7 @@ export function RecordDashboard({
             <SummaryReportSection
               initialReport={initialSummaryReport}
               maxRangeDays={maxReportRangeDays}
+              requiresAuth={requiresAuthForCloudFeatures}
             />
           }
           correlation={
@@ -1495,6 +1511,7 @@ export function RecordDashboard({
               }}
               maxRangeDays={maxReportRangeDays}
               symptomItems={symptomItems}
+              requiresAuth={requiresAuthForCloudFeatures}
             />
           }
         />
@@ -1502,6 +1519,7 @@ export function RecordDashboard({
 
       {activeTab === 'settings' ? (
         <SettingsView
+          accountManagement={<AccountPanel initialSessionUser={sessionUser} />}
           itemManagement={settingsPanel}
           syncStatus={
             <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">

@@ -19,6 +19,7 @@ type CorrelationReportSectionProps = {
   initialReport: CorrelationReportResponse;
   maxRangeDays: number;
   symptomItems: ItemResponse[];
+  requiresAuth?: boolean;
 };
 
 type CorrelationFilterState = {
@@ -69,6 +70,7 @@ export function CorrelationReportSection({
   initialReport,
   maxRangeDays,
   symptomItems,
+  requiresAuth = false,
 }: CorrelationReportSectionProps) {
   const [report, setReport] = useState(initialReport);
   const [filterState, setFilterState] = useState<CorrelationFilterState>({
@@ -107,6 +109,11 @@ export function CorrelationReportSection({
   }
 
   async function fetchReport() {
+    if (requiresAuth) {
+      setReportError('登入帳號並連結裝置後，才能讀取雲端關聯觀察。');
+      return;
+    }
+
     if (!effectiveSymptomItemId) {
       return;
     }
@@ -263,7 +270,13 @@ export function CorrelationReportSection({
         </p>
       ) : null}
 
-      {symptomItems.length > 0 ? (
+      {requiresAuth ? (
+        <div className="mt-5 rounded-2xl border border-dashed border-rose-200 bg-rose-50/70 px-4 py-6 text-sm leading-6 text-[var(--muted)]">
+          目前是本機模式。登入並連結裝置後，這裡才會整理帳號資料中的相對關聯。
+        </div>
+      ) : null}
+
+      {!requiresAuth && symptomItems.length > 0 ? (
         <div className="mt-5 grid gap-4">
           <div className="rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-4">
             <p className="text-sm font-medium text-rose-700">

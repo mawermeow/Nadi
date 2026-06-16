@@ -13,13 +13,13 @@
 - 新增 sync metadata 欄位
 - `deleted_at` 已開始被 items / records delete API 使用
 - `version` 已開始被 items / records update API 使用於 version check
-- `device_id` 目前仍只是預留
+- `device_id` 現在已開始參與 sync 與 account linking
 
-目前仍未實作：
+目前新增 Phase 9 account system 所需結構：
 
-- sync API
-- IndexedDB local store
-- operation queue
+- `users` 補上 auth 欄位
+- `sessions`、`accounts`、`verifications`
+- `device_account_links`
 
 ## Tables
 
@@ -29,7 +29,66 @@
 | --- | --- | --- |
 | `id` | `uuid` | Primary key. |
 | `email` | `text` | Unique user email. |
+| `email_verified` | `boolean` | Email verification flag for account auth. |
+| `name` | `text` | Display name used by auth/session UI. |
+| `image` | `text` | Optional avatar URL. |
 | `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
+
+### sessions
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `user_id` | `uuid` | References `users.id`, cascade delete. |
+| `token` | `text` | Unique session token. |
+| `expires_at` | `timestamptz` | Session expiration time. |
+| `ip_address` | `text` | Optional device IP snapshot. |
+| `user_agent` | `text` | Optional client user-agent snapshot. |
+| `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
+
+### accounts
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `account_id` | `text` | Provider-side account id; email/password flow 會對應 credential account。 |
+| `provider_id` | `text` | Auth provider id. |
+| `user_id` | `uuid` | References `users.id`, cascade delete. |
+| `access_token` | `text` | Optional provider token. |
+| `refresh_token` | `text` | Optional provider refresh token. |
+| `id_token` | `text` | Optional provider id token. |
+| `access_token_expires_at` | `timestamptz` | Optional access token expiry. |
+| `refresh_token_expires_at` | `timestamptz` | Optional refresh token expiry. |
+| `scope` | `text` | Optional provider scope. |
+| `password` | `text` | Password hash managed by Better Auth. |
+| `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
+
+### verifications
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `identifier` | `text` | Verification target identifier. |
+| `value` | `text` | Verification token payload. |
+| `expires_at` | `timestamptz` | Expiration time. |
+| `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
+
+### device_account_links
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `user_id` | `uuid` | References `users.id`, cascade delete. |
+| `device_id` | `text` | Persistent local device identifier. |
+| `linked_at` | `timestamptz` | First time this device was linked to the account. |
+| `last_seen_at` | `timestamptz` | Last sync or link activity seen by the server. |
+| `last_merged_at` | `timestamptz` | Last time local data merge was confirmed through account sync flow. |
+| `created_at` | `timestamptz` | Creation timestamp. |
+| `updated_at` | `timestamptz` | Last update timestamp. |
 
 ### items
 
@@ -99,6 +158,16 @@ Record constraints:
 ## Indexes
 
 - `users_email_idx`
+- `accounts_provider_account_idx`
+- `accounts_user_id_idx`
+- `sessions_token_idx`
+- `sessions_user_id_idx`
+- `sessions_expires_at_idx`
+- `verifications_identifier_idx`
+- `verifications_expires_at_idx`
+- `device_account_links_device_id_idx`
+- `device_account_links_user_id_idx`
+- `device_account_links_last_seen_at_idx`
 - `items_user_id_idx`
 - `items_user_type_idx`
 - `items_user_archived_idx`
@@ -122,7 +191,8 @@ Record constraints:
 - `sync_status` 目前 server-side default 為 `synced`
 - `deleted_at` 現在已被 items / records delete API 使用
 - `version` 現在已被 items / records update API 使用於 version check
-- `device_id` 目前只是預留，不代表 client 已送出 device id
+- `device_id` 現在會由 local device id 帶入 sync push / pull
+- `device_account_links` 用來記錄哪台裝置已被哪個帳號接管同步身份
 - `archived` 與 `deleted_at` 不同
 - `archived` 是產品層停用狀態
 - `deleted_at` 是同步層 soft delete 狀態

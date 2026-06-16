@@ -9,6 +9,8 @@ type SeedRecord = typeof records.$inferInsert;
 const LOCAL_USER = {
   id: '11111111-1111-4111-8111-111111111111',
   email: 'local@nadi.dev',
+  name: 'Local Seed User',
+  emailVerified: true,
 };
 
 function seedUuid(sequence: number) {

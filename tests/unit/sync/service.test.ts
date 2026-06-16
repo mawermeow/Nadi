@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/features/auth/service', () => ({
   ensureSessionUserRecord: vi.fn(),
+  recordDeviceSeenForUser: vi.fn(),
 }));
 
 vi.mock('@/features/items/repository', () => ({
@@ -37,6 +38,8 @@ import { pullSyncChangesForUser, pushSyncOperationsForUser } from '@/features/sy
 const user = {
   id: '11111111-1111-4111-8111-111111111111',
   email: 'local@nadi.dev',
+  name: 'Local User',
+  emailVerified: true,
 };
 
 const baseItem = {

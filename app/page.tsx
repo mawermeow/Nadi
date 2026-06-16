@@ -7,18 +7,14 @@ import {
   getCorrelationReportForUser,
   getSummaryReportForUser,
 } from '@/features/reports/service';
-import { requireUser } from '@/lib/auth/require-user';
+import { getSessionUser } from '@/lib/auth/session';
 import { getServerEnv } from '@/lib/validation/env';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const user = await requireUser();
+  const user = await getSessionUser();
   const env = getServerEnv();
-  const items = await listItemsForUser(user, {
-    includeArchived: true,
-  });
-  const records = await listRecordsForUser(user);
   const defaultTo = new Date();
   const defaultFrom = new Date(defaultTo);
   defaultFrom.setDate(defaultTo.getDate() - 13);
@@ -44,25 +40,39 @@ export default async function HomePage() {
       999,
     ),
   ).toISOString();
-  const summaryReport = await getSummaryReportForUser(user, {
-    from: defaultFromIso,
-    to: defaultToIso,
-  });
-  const defaultSymptomItem = items.find((item) => item.type === 'symptom');
-  const correlationReport = defaultSymptomItem
-    ? await getCorrelationReportForUser(user, {
-        symptomItemId: defaultSymptomItem.id,
-        from: defaultFromIso,
-        to: defaultToIso,
-        windowHours: env.NADI_CORRELATION_DEFAULT_WINDOW_HOURS,
+  const items = user
+    ? await listItemsForUser(user, {
+        includeArchived: true,
       })
-    : createEmptyCorrelationReport({
-        symptomItemId: '',
+    : [];
+  const records = user ? await listRecordsForUser(user) : [];
+  const summaryReport = user
+    ? await getSummaryReportForUser(user, {
         from: defaultFromIso,
         to: defaultToIso,
-        windowHours: env.NADI_CORRELATION_DEFAULT_WINDOW_HOURS,
-        minimumSampleSize: env.NADI_CORRELATION_MIN_SAMPLE_SIZE,
-      });
+      })
+    : {
+        from: defaultFromIso,
+        to: defaultToIso,
+        metrics: [],
+        symptoms: [],
+      };
+  const defaultSymptomItem = items.find((item) => item.type === 'symptom');
+  const correlationReport =
+    user && defaultSymptomItem
+      ? await getCorrelationReportForUser(user, {
+          symptomItemId: defaultSymptomItem.id,
+          from: defaultFromIso,
+          to: defaultToIso,
+          windowHours: env.NADI_CORRELATION_DEFAULT_WINDOW_HOURS,
+        })
+      : createEmptyCorrelationReport({
+          symptomItemId: '',
+          from: defaultFromIso,
+          to: defaultToIso,
+          windowHours: env.NADI_CORRELATION_DEFAULT_WINDOW_HOURS,
+          minimumSampleSize: env.NADI_CORRELATION_MIN_SAMPLE_SIZE,
+        });
 
   return (
     <RecordDashboard
@@ -72,7 +82,7 @@ export default async function HomePage() {
       initialCorrelationReport={correlationReport}
       maxReportRangeDays={env.NADI_REPORT_MAX_RANGE_DAYS}
       defaultCorrelationWindowHours={env.NADI_CORRELATION_DEFAULT_WINDOW_HOURS}
-      userEmail={user.email}
+      sessionUser={user}
     />
   );
 }

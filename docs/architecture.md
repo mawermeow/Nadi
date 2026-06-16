@@ -40,6 +40,22 @@
 8. client 再 pull 最新 `items` / `records` / `tombstones`
 9. remote changes merge 回 IndexedDB，UI 重新讀取 local data
 
+## Phase 9 Addition: Account Identity
+
+目前 account system 採雙模式：
+
+1. 未登入時，client 維持 local-only flow，只寫 IndexedDB 與 local operation queue
+2. 使用者登入後，session 由 Better Auth 管理
+3. cloud route 與 sync route 的 `user ownership` 一律從 server-side session 推導
+4. client 需先執行 `device-link`，明確把 `deviceId` 與 account 綁定
+5. 完成 link 後，既有 push / pull sync flow 才會把本機資料 merge 到該帳號
+
+這樣做的原因：
+
+- 不讓登入行為直接觸發隱性資料覆蓋
+- 保留 anonymous local-first 使用能力
+- 讓 sync identity 以 authenticated user 為準，而不是以本機暫存狀態為準
+
 目前仍未完成：
 
 - iOS background task integration 尚未實作

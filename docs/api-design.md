@@ -10,6 +10,9 @@
 - GET list 預設排除 soft-deleted rows
 - sync push / pull skeleton 已建立
 - sync client 與 foreground sync service 已接上 sync API
+- Better Auth email/password registration、login、logout
+- account-based session management
+- device-to-account linking API
 
 目前尚未完成：
 
@@ -38,8 +41,14 @@
 - `DELETE /v1/records/:recordId`
 - `POST /v1/sync/push`
 - `POST /v1/sync/pull`
+- `POST /v1/account/device-link`
 - `GET /v1/reports/summary`
 - `GET /v1/reports/correlation`
+- `/api/auth/*` Better Auth handler:
+  - `POST /api/auth/sign-up/email`
+  - `POST /api/auth/sign-in/email`
+  - `POST /api/auth/sign-out`
+  - `GET /api/auth/get-session`
 
 AI insights remain outside the current MVP scope.
 
@@ -170,11 +179,14 @@ Rules:
 目前 sync runtime 說明：
 
 - sync 是 foreground / `online` event 驅動
+- 未登入時 client 保持 local-only，不送 cloud sync request
+- 已登入但未完成 device link 時，client 不自動上傳本機資料
 - `navigator.onLine === false` 時 client 不送 sync request
 - iOS PWA background sync 不保證可靠，因此目前不依賴真正的 background task
 - local store 已接上 sync API，但 UI 尚未全面改為 local-first
 - conflict 目前只偵測與標記，不自動覆蓋本機資料
 - pull 需要保留 tombstones，讓 client 能同步 soft delete 事件
+- server 端 sync identity 一律以 authenticated session user 為準
 
 ## `POST /v1/sync/push`
 
@@ -257,6 +269,55 @@ Client side handling：
 - `accepted`：標記 local operation `synced`，同步更新 local entity `version`、`syncStatus`、`lastSyncedAt`
 - `rejected`：標記 local operation / entity `failed`，保留 `lastError`
 - `conflicts`：標記 local operation / entity `conflict`，不自動覆蓋本機資料
+
+## `POST /v1/account/device-link`
+
+用途：
+
+- 把本機 `deviceId` 明確連結到目前登入帳號
+- 作為 local-first merge 的顯式確認步驟
+- 避免一登入就自動覆蓋或自動推送本機 pending changes
+
+Request body:
+
+```json
+{
+  "deviceId": "device-local",
+  "localItemCount": 8,
+  "localRecordCount": 42,
+  "pendingOperationCount": 5,
+  "forceRelink": false
+}
+```
+
+Rules:
+
+- route 必須登入
+- `deviceId` 必填
+- server 不接受 `userId`，一律從 session 推導
+- 若同一 `deviceId` 已綁到其他帳號，預設回 `409 conflict`
+- 只有使用者明確改綁時才可送 `forceRelink=true`
+
+Response body:
+
+```json
+{
+  "deviceLink": {
+    "userId": "uuid",
+    "deviceId": "device-local",
+    "linkedAt": "2026-06-16T12:00:00.000Z",
+    "lastSeenAt": "2026-06-16T12:00:00.000Z",
+    "lastMergedAt": null
+  },
+  "requiresLocalMerge": true
+}
+```
+
+Merge semantics:
+
+- `requiresLocalMerge=true` 代表本機仍有 items / records / pending operations，需要後續跑 sync
+- 真正的 local-to-cloud merge 仍透過既有 `push` / `pull` flow 執行
+- server 不會因登入就直接覆蓋其他裝置的 pending changes
 
 ## `POST /v1/sync/pull`
 

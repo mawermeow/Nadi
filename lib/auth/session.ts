@@ -1,21 +1,27 @@
-import { getServerEnv } from '@/lib/validation/env';
+import { headers } from 'next/headers';
 
 export type SessionUser = {
   id: string;
   email: string;
+  name: string;
+  emailVerified: boolean;
 };
 
-const LOCAL_SESSION_USER: SessionUser = {
-  id: '11111111-1111-4111-8111-111111111111',
-  email: 'local@nadi.dev',
-};
+import { auth } from './auth';
 
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const env = getServerEnv();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-  if (env.NADI_APP_MODE === 'local') {
-    return LOCAL_SESSION_USER;
+  if (!session?.user) {
+    return null;
   }
 
-  return null;
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    emailVerified: session.user.emailVerified,
+  };
 }

@@ -1,5 +1,8 @@
 import type { Item, Record } from '@/db/schema';
-import { ensureSessionUserRecord } from '@/features/auth/service';
+import {
+  ensureSessionUserRecord,
+  recordDeviceSeenForUser,
+} from '@/features/auth/service';
 import { findItemByIdForUser } from '@/features/items/repository';
 import type { SessionUser } from '@/lib/auth/session';
 
@@ -612,6 +615,10 @@ export async function pushSyncOperationsForUser(
   input: SyncPushRequestInput,
 ): Promise<SyncPushResponse> {
   await ensureSessionUserRecord(user);
+  await recordDeviceSeenForUser({
+    user,
+    deviceId: input.deviceId,
+  });
 
   const serverTime = new Date();
   const accepted: SyncAcceptedOperation[] = [];
@@ -738,6 +745,11 @@ export async function pullSyncChangesForUser(
   input: SyncPullRequestInput,
 ): Promise<SyncPullResponse> {
   await ensureSessionUserRecord(user);
+  await recordDeviceSeenForUser({
+    user,
+    deviceId: input.deviceId,
+    markMerged: true,
+  });
 
   const lastPulledAt = input.lastPulledAt ? new Date(input.lastPulledAt) : undefined;
   const serverTime = new Date();

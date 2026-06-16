@@ -36,6 +36,8 @@ import {
 const user = {
   id: '11111111-1111-4111-8111-111111111111',
   email: 'local@nadi.dev',
+  name: 'Local User',
+  emailVerified: true,
 };
 
 const syncFields = {

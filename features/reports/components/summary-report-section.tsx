@@ -14,6 +14,7 @@ import {
 type SummaryReportSectionProps = {
   initialReport: SummaryReportResponse;
   maxRangeDays: number;
+  requiresAuth?: boolean;
 };
 
 type ReportFilterState = {
@@ -40,6 +41,7 @@ function toRangeIso(value: string, edge: 'start' | 'end') {
 export function SummaryReportSection({
   initialReport,
   maxRangeDays,
+  requiresAuth = false,
 }: SummaryReportSectionProps) {
   const [report, setReport] = useState(initialReport);
   const [filterState, setFilterState] = useState<ReportFilterState>({
@@ -68,6 +70,11 @@ export function SummaryReportSection({
   }
 
   async function fetchReport() {
+    if (requiresAuth) {
+      setReportError('登入帳號並連結裝置後，才能讀取雲端摘要報表。');
+      return;
+    }
+
     setReportError(null);
 
     startTransition(async () => {
@@ -163,11 +170,17 @@ export function SummaryReportSection({
         </p>
       ) : null}
 
-      {!hasData ? (
+      {requiresAuth ? (
+        <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
+          目前是本機模式。登入並連結裝置後，這裡會用帳號資料整理雲端摘要。
+        </div>
+      ) : null}
+
+      {!requiresAuth && !hasData ? (
         <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
           目前選定區間內的資料仍不足以形成摘要。你可以持續記錄，之後再回來查看。
         </div>
-      ) : (
+      ) : !requiresAuth ? (
         <div className="mt-6 grid gap-6">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <article className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
@@ -314,7 +327,7 @@ export function SummaryReportSection({
             </section>
           </div>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
