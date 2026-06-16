@@ -73,13 +73,19 @@ docker compose ps
 pnpm db:migrate
 ```
 
-4. 啟動開發環境
+4. 載入本機 mock data
+
+```bash
+pnpm db:seed
+```
+
+5. 啟動開發環境
 
 ```bash
 pnpm dev
 ```
 
-5. 開啟應用
+6. 開啟應用
 
 ```txt
 http://localhost:3000
@@ -135,6 +141,7 @@ docker compose down -v
 ```bash
 pnpm db:docker:up
 pnpm db:migrate
+pnpm db:seed
 ```
 
 ## 建議驗證順序
@@ -143,9 +150,10 @@ pnpm db:migrate
 
 1. `pnpm db:docker:up`
 2. `pnpm db:migrate`
-3. `pnpm dev`
-4. `pnpm db:docker:psql`
-5. 在 `psql` 內執行 `\dt`，確認 `users`、`items`、`records`、`report_snapshots`
+3. `pnpm db:seed`
+4. `pnpm dev`
+5. `pnpm db:docker:psql`
+6. 在 `psql` 內執行 `\dt`，確認 `users`、`items`、`records`、`report_snapshots`
 
 ## 範圍說明
 
@@ -153,12 +161,29 @@ pnpm db:migrate
 
 - PostgreSQL 容器
 - migration 驗證
+- mock seed data
 - app 與資料庫的本機連線測試
 
 這份流程目前不包含：
 
 - Neon 雲端環境
 - Auth provider
-- seed data
 - reports
 - offline sync
+
+## Mock Seed 說明
+
+`pnpm db:seed` 會為目前本機 `NADI_APP_MODE=local` 的固定使用者建立一組可重跑的 mock data。
+
+特性：
+
+- 使用固定 UUID，可重複執行而不會無限新增重複資料
+- 不會清空你現有的資料表
+- 主要覆蓋 `items`、`records`、summary report、correlation report 的驗證情境
+
+內容包含：
+
+- metric items：睡眠時數、飲水量、咖啡、步行、備註心情
+- symptom items：頭痛程度、疲勞感、腸胃不適描述
+- 1 個 archived item：`舊版壓力量表`
+- 約 3 週的 mock records，刻意讓部分頭痛事件出現在低睡眠與有喝咖啡的日子，方便驗證 correlation flow
