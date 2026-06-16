@@ -18,6 +18,13 @@ type ReportFilterState = {
   to: string;
 };
 
+const valueTypeLabelMap = {
+  number: '數字',
+  boolean: '是 / 否',
+  scale: '量表',
+  text: '文字',
+} as const;
+
 function toDateInputValue(value: string) {
   return new Date(value).toISOString().slice(0, 10);
 }
@@ -77,13 +84,22 @@ export function SummaryReportSection({
     });
   }
 
+  function resetFilter() {
+    setFilterState({
+      from: toDateInputValue(initialReport.from),
+      to: toDateInputValue(initialReport.to),
+    });
+    setReportError(null);
+    setReport(initialReport);
+  }
+
   return (
     <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Summary 報表</h2>
+          <h2 className="text-xl font-semibold">摘要報表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            這裡只提供基礎統計摘要。它能幫你整理資料，但不代表任何醫療結論。
+            這裡整理目前區間內的基礎統計，幫助你回頭閱讀自己的紀錄，不代表任何醫療結論。
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--muted)]">
@@ -112,16 +128,30 @@ export function SummaryReportSection({
         </label>
       </div>
 
-      <div className="mt-4 flex gap-3">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
           onClick={fetchReport}
           disabled={isLoading}
           className="rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {isLoading ? '整理中…' : '查看報表'}
+          {isLoading ? '整理摘要中…' : '更新摘要'}
+        </button>
+        <button
+          type="button"
+          onClick={resetFilter}
+          disabled={isLoading}
+          className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
+        >
+          回到預設區間
         </button>
       </div>
+
+      {isLoading ? (
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          正在整理這段時間的紀錄，通常只需要幾秒鐘。
+        </p>
+      ) : null}
 
       {reportError ? (
         <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -158,12 +188,13 @@ export function SummaryReportSection({
             <section className="rounded-2xl border border-[var(--line)] bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold">指標摘要</h3>
-                <span className="text-sm text-[var(--muted)]">metric items</span>
+                <span className="text-sm text-[var(--muted)]">以數量較多的項目排前面</span>
               </div>
               <div className="mt-4 grid gap-3">
                 {report.metrics.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm text-[var(--muted)]">
-                    這段時間內沒有指標資料。
+                  <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+                    這段時間內還沒有指標資料。
+                    你可以先回到上方新增一筆數值、布林或量表型紀錄。
                   </div>
                 ) : (
                   report.metrics.map((metric) => (
@@ -175,7 +206,7 @@ export function SummaryReportSection({
                         <div>
                           <h4 className="font-semibold">{metric.title}</h4>
                           <p className="mt-1 text-sm text-[var(--muted)]">
-                            {metric.count} 筆紀錄 / {metric.valueType}
+                            {metric.count} 筆紀錄 / {valueTypeLabelMap[metric.valueType]}
                           </p>
                         </div>
                         <p className="text-sm font-medium">
@@ -225,12 +256,13 @@ export function SummaryReportSection({
             <section className="rounded-2xl border border-[var(--line)] bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-rose-700">症狀摘要</h3>
-                <span className="text-sm text-rose-600">symptom items</span>
+                <span className="text-sm text-rose-600">保留觀察語氣，不做推論</span>
               </div>
               <div className="mt-4 grid gap-3">
                 {report.symptoms.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm text-[var(--muted)]">
-                    這段時間內沒有症狀資料。
+                  <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+                    這段時間內還沒有症狀資料。
+                    若你想觀察關聯變化，可以先持續記錄症狀出現的時間與程度。
                   </div>
                 ) : (
                   report.symptoms.map((symptom) => (
@@ -242,7 +274,7 @@ export function SummaryReportSection({
                         <div>
                           <h4 className="font-semibold">{symptom.title}</h4>
                           <p className="mt-1 text-sm text-[var(--muted)]">
-                            {symptom.occurrenceCount} 次出現 / {symptom.valueType}
+                            {symptom.occurrenceCount} 次出現 / {valueTypeLabelMap[symptom.valueType]}
                           </p>
                         </div>
                         <p className="text-sm font-medium">

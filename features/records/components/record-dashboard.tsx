@@ -68,6 +68,12 @@ const valueTypeOptions = [
   { value: 'text', label: '文字' },
 ] as const;
 
+function getValueTypeLabel(valueType: ItemFormState['valueType']) {
+  return (
+    valueTypeOptions.find((option) => option.value === valueType)?.label ?? valueType
+  );
+}
+
 function getItemTypeTabClass(
   currentValue: 'metric' | 'symptom',
   optionValue: 'metric' | 'symptom',
@@ -165,6 +171,8 @@ export function RecordDashboard({
   const [itemError, setItemError] = useState<string | null>(null);
   const [recordError, setRecordError] = useState<string | null>(null);
   const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [itemNotice, setItemNotice] = useState<string | null>(null);
+  const [recordNotice, setRecordNotice] = useState<string | null>(null);
   const [isSubmittingItem, startItemTransition] = useTransition();
   const [isSubmittingRecord, startRecordTransition] = useTransition();
   const [isLoadingTimeline, startTimelineTransition] = useTransition();
@@ -249,6 +257,7 @@ export function RecordDashboard({
   async function handleCreateItem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setItemError(null);
+    setItemNotice(null);
     setItemFieldErrors({});
 
     const payload = {
@@ -285,12 +294,14 @@ export function RecordDashboard({
         ...currentState,
         itemId: data.id,
       }));
+      setItemNotice(`已建立「${data.title}」，現在可以直接用它來新增紀錄。`);
     });
   }
 
   async function handleCreateRecord(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setRecordError(null);
+    setRecordNotice(null);
     setRecordFieldErrors({});
 
     if (!selectedItem) {
@@ -338,10 +349,14 @@ export function RecordDashboard({
         note: '',
         recordedAt: formatDateTimeLocal(),
       }));
+      setRecordNotice(`已記下「${data.itemTitle}」，你可以繼續補下一筆。`);
     });
   }
 
   async function toggleArchive(item: ItemResponse, archived: boolean) {
+    setItemError(null);
+    setItemNotice(null);
+
     startItemMutationTransition(async () => {
       const response = await fetch(`/v1/items/${item.id}`, {
         method: 'PATCH',
@@ -370,11 +385,18 @@ export function RecordDashboard({
           itemId: nextItem?.id ?? '',
         }));
       }
+
+      setItemNotice(
+        archived
+          ? `已封存「${item.title}」，它不會再出現在預設選單中。`
+          : `已恢復「${item.title}」，現在可以再次使用。`,
+      );
     });
   }
 
   async function fetchTimeline() {
     setTimelineError(null);
+    setRecordNotice(null);
 
     const params = new URLSearchParams();
 
@@ -406,6 +428,9 @@ export function RecordDashboard({
   }
 
   async function deleteRecord(recordId: string) {
+    setTimelineError(null);
+    setRecordNotice(null);
+
     startDeleteTransition(async () => {
       const response = await fetch(`/v1/records/${recordId}`, {
         method: 'DELETE',
@@ -420,6 +445,7 @@ export function RecordDashboard({
       setRecords((currentRecords) =>
         currentRecords.filter((record) => record.id !== recordId),
       );
+      setRecordNotice('已刪除這筆紀錄。');
     });
   }
 
@@ -428,20 +454,36 @@ export function RecordDashboard({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_24px_80px_rgba(31,42,42,0.08)] sm:p-8">
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
-            Nadi / Phase 5
+            Nadi / Phase 6
           </p>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                建立每日紀錄
+                觀察自己的日常訊號
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                先選擇現有項目，再快速記下一筆。預設列表會顯示近期紀錄，已封存項目的歷史紀錄仍可查詢。
+                先記下今天的指標或症狀，再用摘要與關聯觀察慢慢整理。整體介面以手機操作與低摩擦流程為優先。
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)]">
               目前使用者：{userEmail}
             </div>
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-4">
+              <p className="text-sm text-[var(--muted)]">啟用中項目</p>
+              <p className="mt-2 text-2xl font-semibold">{activeItems.length}</p>
+            </article>
+            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-4">
+              <p className="text-sm text-[var(--muted)]">近期紀錄</p>
+              <p className="mt-2 text-2xl font-semibold">{records.length}</p>
+            </article>
+            <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-4">
+              <p className="text-sm text-[var(--muted)]">症狀項目</p>
+              <p className="mt-2 text-2xl font-semibold text-rose-700">
+                {symptomItems.length}
+              </p>
+            </article>
           </div>
         </section>
 
@@ -469,13 +511,14 @@ export function RecordDashboard({
             <div>
               <h2 className="text-xl font-semibold">新增紀錄</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                優先支援手機操作，盡量用最少欄位完成一筆紀錄。
+                先選項目、再填一個值即可。若只是快速補記，備註可以先留空。
               </p>
             </div>
 
             {activeItems.length === 0 ? (
-              <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-5 text-sm text-[var(--muted)]">
-                尚未建立任何啟用中的項目。請先到下方建立紀錄項目。
+              <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+                目前還沒有可用項目，因此還不能新增紀錄。
+                下一步：到下方建立至少一個指標或症狀項目。
               </div>
             ) : (
               <div className="mt-5 grid gap-4">
@@ -498,10 +541,11 @@ export function RecordDashboard({
                 <label className="grid gap-2">
                   <span className="text-sm font-medium">選擇項目</span>
                   {selectableRecordItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-4 text-sm text-[var(--muted)]">
+                    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-4 text-sm leading-6 text-[var(--muted)]">
                       目前沒有可用的
                       {recordItemTypeTab === 'metric' ? '指標' : '症狀'}
-                      項目，請先在下方建立。
+                      項目。
+                      下一步：到下方新增一個{recordItemTypeTab === 'metric' ? '指標' : '症狀'}項目。
                     </div>
                   ) : (
                     <select
@@ -527,54 +571,69 @@ export function RecordDashboard({
                 </label>
 
                 {selectedItem ? (
-                  <label className="grid gap-2">
-                    <span className="text-sm font-medium">
-                      紀錄值
-                      {selectedItem.valueType === 'scale' &&
-                      selectedItem.scaleMin !== undefined &&
-                      selectedItem.scaleMax !== undefined
-                        ? ` (${selectedItem.scaleMin} - ${selectedItem.scaleMax})`
-                        : ''}
-                    </span>
-                    {selectedItem.valueType === 'boolean' ? (
-                      <select
-                        value={recordFormState.valueBoolean}
-                        onChange={(event) =>
-                          updateRecordFormValue(
-                            'valueBoolean',
-                            event.target.value as 'true' | 'false',
-                          )
-                        }
-                        className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
-                      >
-                        <option value="true">是</option>
-                        <option value="false">否</option>
-                      </select>
-                    ) : (
-                      <input
-                        inputMode={
-                          selectedItem.valueType === 'text' ? 'text' : 'decimal'
-                        }
-                        value={recordFormState.valueText}
-                        onChange={(event) =>
-                          updateRecordFormValue('valueText', event.target.value)
-                        }
-                        className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
-                        placeholder={
-                          selectedItem.valueType === 'text'
-                            ? '輸入紀錄內容'
-                            : selectedItem.valueType === 'scale'
-                              ? '輸入量表分數'
-                              : '輸入數值'
-                        }
-                      />
-                    )}
-                    {recordFieldErrors.value?.[0] ? (
-                      <span className="text-sm text-rose-700">
-                        {recordFieldErrors.value[0]}
+                  <>
+                    <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-4 text-sm leading-6 text-[var(--muted)]">
+                      目前要記錄的是「{selectedItem.title}」。
+                      類型：{selectedItem.type === 'metric' ? '指標' : '症狀'} /
+                      格式：{getValueTypeLabel(selectedItem.valueType)}
+                      {selectedItem.unit ? ` / 單位：${selectedItem.unit}` : ''}
+                    </div>
+                    <label className="grid gap-2">
+                      <span className="text-sm font-medium">
+                        紀錄值
+                        {selectedItem.valueType === 'scale' &&
+                        selectedItem.scaleMin !== undefined &&
+                        selectedItem.scaleMax !== undefined
+                          ? ` (${selectedItem.scaleMin} - ${selectedItem.scaleMax})`
+                          : ''}
                       </span>
-                    ) : null}
-                  </label>
+                      {selectedItem.valueType === 'boolean' ? (
+                        <select
+                          value={recordFormState.valueBoolean}
+                          onChange={(event) =>
+                            updateRecordFormValue(
+                              'valueBoolean',
+                              event.target.value as 'true' | 'false',
+                            )
+                          }
+                          className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                        >
+                          <option value="true">是</option>
+                          <option value="false">否</option>
+                        </select>
+                      ) : (
+                        <input
+                          inputMode={
+                            selectedItem.valueType === 'text' ? 'text' : 'decimal'
+                          }
+                          value={recordFormState.valueText}
+                          onChange={(event) =>
+                            updateRecordFormValue('valueText', event.target.value)
+                          }
+                          className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
+                          placeholder={
+                            selectedItem.valueType === 'text'
+                              ? '輸入你想記下的內容'
+                              : selectedItem.valueType === 'scale'
+                                ? '例如：3、5、7'
+                                : '例如：6.5'
+                          }
+                        />
+                      )}
+                      <span className="text-sm text-[var(--muted)]">
+                        {selectedItem.valueType === 'text'
+                          ? '若是文字型項目，盡量簡短描述即可。'
+                          : selectedItem.valueType === 'boolean'
+                            ? '適合用來記錄今天是否出現某件事。'
+                            : '若之後要看摘要或關聯，建議維持一致的填寫習慣。'}
+                      </span>
+                      {recordFieldErrors.value?.[0] ? (
+                        <span className="text-sm text-rose-700">
+                          {recordFieldErrors.value[0]}
+                        </span>
+                      ) : null}
+                    </label>
+                  </>
                 ) : null}
 
                 <label className="grid gap-2">
@@ -618,6 +677,11 @@ export function RecordDashboard({
                 {recordError}
               </p>
             ) : null}
+            {recordNotice ? (
+              <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {recordNotice}
+              </p>
+            ) : null}
 
             <button
               type="submit"
@@ -628,8 +692,13 @@ export function RecordDashboard({
               }
               className="mt-5 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmittingRecord ? '建立中…' : '建立紀錄'}
+              {isSubmittingRecord ? '儲存紀錄中…' : '儲存這筆紀錄'}
             </button>
+            {isSubmittingRecord ? (
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                正在寫入資料，完成後會自動更新近期紀錄。
+              </p>
+            ) : null}
           </form>
 
           <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
@@ -637,8 +706,11 @@ export function RecordDashboard({
               <div>
                 <h2 className="text-xl font-semibold">近期紀錄</h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  預設顯示近期資料，也可以用日期區間與項目篩選。
+                  預設顯示近期資料，也可以用日期區間與項目縮小範圍。
                 </p>
+              </div>
+              <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-3 text-sm text-[var(--muted)]">
+                目前顯示 {records.length} 筆
               </div>
             </div>
 
@@ -700,14 +772,14 @@ export function RecordDashboard({
               </label>
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={fetchTimeline}
                 disabled={isLoadingTimeline}
                 className="rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {isLoadingTimeline ? '查詢中…' : '查詢紀錄'}
+                {isLoadingTimeline ? '整理紀錄中…' : '套用條件'}
               </button>
               <button
                 type="button"
@@ -723,9 +795,14 @@ export function RecordDashboard({
                 }}
                 className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
               >
-                清除條件
+                回到近期列表
               </button>
             </div>
+            {isLoadingTimeline ? (
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                正在整理符合條件的紀錄，完成後會更新下方列表。
+              </p>
+            ) : null}
 
             {timelineError ? (
               <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -734,9 +811,21 @@ export function RecordDashboard({
             ) : null}
 
             <div className="mt-5 grid gap-3">
-              {records.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm text-[var(--muted)]">
+              {isLoadingTimeline ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`timeline-loading-${index}`}
+                    className="animate-pulse rounded-2xl border border-[var(--line)] bg-white p-4"
+                  >
+                    <div className="h-4 w-28 rounded bg-stone-200" />
+                    <div className="mt-3 h-10 rounded-2xl bg-stone-100" />
+                    <div className="mt-3 h-3 w-36 rounded bg-stone-100" />
+                  </div>
+                ))
+              ) : records.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
                   目前沒有符合條件的紀錄。
+                  你可以調整日期條件，或先回到左側新增一筆紀錄。
                 </div>
               ) : (
                 records.map((record) => (
@@ -784,7 +873,7 @@ export function RecordDashboard({
                         disabled={isDeletingRecord}
                         className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
                       >
-                        刪除
+                        {isDeletingRecord ? '處理中…' : '刪除'}
                       </button>
                     </div>
                   </article>
@@ -802,7 +891,7 @@ export function RecordDashboard({
             <div>
               <h2 className="text-xl font-semibold">新增項目</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                若還缺少可選項目，可直接在這裡補上。
+                若還缺少可選項目，可直接在這裡補上。先從最常記錄的那一個開始即可。
               </p>
             </div>
 
@@ -927,22 +1016,32 @@ export function RecordDashboard({
                 {itemError}
               </p>
             ) : null}
+            {itemNotice ? (
+              <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {itemNotice}
+              </p>
+            ) : null}
 
             <button
               type="submit"
               disabled={isSubmittingItem}
               className="mt-5 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmittingItem ? '建立中…' : '建立項目'}
+              {isSubmittingItem ? '建立項目中…' : '建立新項目'}
             </button>
+            {isSubmittingItem ? (
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                正在整理項目設定，完成後會立刻出現在選單與列表中。
+              </p>
+            ) : null}
           </form>
 
           <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">項目列表</h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  預設只顯示啟用中的項目。
+                  預設只顯示啟用中的項目；封存後會保留歷史紀錄，但不再出現在預設選單。
                 </p>
               </div>
               <button
@@ -956,8 +1055,9 @@ export function RecordDashboard({
 
             <div className="mt-5 grid gap-3">
               {activeItems.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm text-[var(--muted)]">
-                  目前還沒有啟用中的項目。先建立一個最常記錄的項目開始。
+                <div className="rounded-2xl border border-dashed border-[var(--line)] bg-[var(--accent-soft)] px-4 py-6 text-sm leading-6 text-[var(--muted)]">
+                  目前還沒有啟用中的項目。
+                  你可以先建立一個最常記錄的指標，像是睡眠、喝水或頭痛程度。
                 </div>
               ) : (
                 activeItems.map((item) => (
@@ -977,11 +1077,7 @@ export function RecordDashboard({
                         </div>
                         <p className="mt-2 text-sm text-[var(--muted)]">
                           格式：
-                          {
-                            valueTypeOptions.find(
-                              (option) => option.value === item.valueType,
-                            )?.label
-                          }
+                          {getValueTypeLabel(item.valueType)}
                           {item.unit ? ` / 單位：${item.unit}` : ''}
                           {item.valueType === 'scale' &&
                           item.scaleMin !== undefined &&
@@ -996,7 +1092,7 @@ export function RecordDashboard({
                         disabled={isMutatingItem}
                         className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-[var(--foreground)]"
                       >
-                        封存
+                        {isMutatingItem ? '處理中…' : '封存'}
                       </button>
                     </div>
                   </article>
@@ -1009,7 +1105,7 @@ export function RecordDashboard({
                 <h3 className="text-base font-semibold">已封存項目</h3>
                 <div className="mt-3 grid gap-3">
                   {archivedItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm text-[var(--muted)]">
+                    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm leading-6 text-[var(--muted)]">
                       目前沒有已封存項目。
                     </div>
                   ) : (
@@ -1022,12 +1118,7 @@ export function RecordDashboard({
                           <div>
                             <h4 className="text-base font-semibold">{item.title}</h4>
                             <p className="mt-2 text-sm text-[var(--muted)]">
-                              {item.type === 'metric' ? '指標' : '症狀'} /{' '}
-                              {
-                                valueTypeOptions.find(
-                                  (option) => option.value === item.valueType,
-                                )?.label
-                              }
+                              {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType)}
                             </p>
                           </div>
                           <button
@@ -1036,7 +1127,7 @@ export function RecordDashboard({
                             disabled={isMutatingItem}
                             className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
                           >
-                            恢復
+                            {isMutatingItem ? '處理中…' : '恢復'}
                           </button>
                         </div>
                       </article>

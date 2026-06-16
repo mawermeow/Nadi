@@ -20,6 +20,12 @@ type CorrelationFilterState = {
 };
 
 const windowOptions = [24, 48, 72] as const;
+const valueTypeLabelMap = {
+  number: '數字',
+  boolean: '是 / 否',
+  scale: '量表',
+  text: '文字',
+} as const;
 
 function toDateInputValue(value: string) {
   if (!value) {
@@ -117,15 +123,24 @@ export function CorrelationReportSection({
     });
   }
 
+  function resetFilter() {
+    setFilterState({
+      symptomItemId: initialReport.symptomItemId,
+      from: toDateInputValue(initialReport.from),
+      to: toDateInputValue(initialReport.to),
+      windowHours: initialReport.windowHours,
+    });
+    setReport(initialReport);
+    setReportError(null);
+  }
+
   return (
     <section className="rounded-[1.75rem] border border-rose-100 bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-rose-700">
-            Correlation 報表
-          </h2>
+          <h2 className="text-xl font-semibold text-rose-700">關聯觀察</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            這裡只整理可能相關的模式，幫助你回頭觀察，不代表因果關係或醫療結論。
+            這裡只整理可能相關的模式，幫助你回頭觀察症狀前後的紀錄，不代表因果關係或醫療結論。
           </p>
         </div>
         <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -201,18 +216,32 @@ export function CorrelationReportSection({
             </div>
           </div>
 
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={fetchReport}
               disabled={isLoading || !effectiveSymptomItemId}
               className="rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {isLoading ? '分析中…' : '查看關聯'}
+              {isLoading ? '整理關聯中…' : '更新觀察'}
+            </button>
+            <button
+              type="button"
+              onClick={resetFilter}
+              disabled={isLoading}
+              className="rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
+            >
+              回到預設條件
             </button>
           </div>
         </>
       )}
+
+      {isLoading ? (
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          正在比對症狀前後的紀錄，樣本越多，結果通常越穩定。
+        </p>
+      ) : null}
 
       {reportError ? (
         <p className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -268,7 +297,7 @@ export function CorrelationReportSection({
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-semibold">{candidate.title}</h3>
                         <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs text-[var(--accent)]">
-                          {candidate.valueType}
+                          {valueTypeLabelMap[candidate.valueType]}
                         </span>
                       </div>
                       <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
@@ -278,7 +307,7 @@ export function CorrelationReportSection({
                     <span
                       className={`rounded-full px-3 py-1 text-sm font-semibold ${getScoreClass(candidate.correlationScore)}`}
                     >
-                      {formatScore(candidate.correlationScore)}
+                      觀察分數 {formatScore(candidate.correlationScore)}
                     </span>
                   </div>
 

@@ -16,4 +16,17 @@ body {
     linear-gradient(180deg, #f7f2e8 0%, #f0eadf 100%);
   color: var(--foreground);
   font-family: "Avenir Next", "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(94, 106, 103, 0.88);
 }
