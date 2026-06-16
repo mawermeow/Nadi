@@ -27,7 +27,6 @@ type AuthMode = 'sign-in' | 'sign-up';
 export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
   const { data: session, isPending, refetch } = authClient.useSession();
   const [mode, setMode] = useState<AuthMode>('sign-in');
-  const [currentUser, setCurrentUser] = useState(initialSessionUser);
   const [name, setName] = useState(initialSessionUser?.name ?? '');
   const [email, setEmail] = useState(initialSessionUser?.email ?? '');
   const [password, setPassword] = useState('');
@@ -41,25 +40,15 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
     linkedAccountUserId: string | null;
   } | null>(null);
   const [isWorking, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (isPending) {
-      return;
-    }
-
-    if (session?.user) {
-      setCurrentUser({
-        id: session.user.id,
-        email: session.user.email,
-        name: session.user.name,
-      });
-      return;
-    }
-
-    setCurrentUser(null);
-  }, [isPending, session?.user]);
-
-  const effectiveUser = currentUser;
+  const effectiveUser = isPending
+    ? initialSessionUser
+    : session?.user
+      ? {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+        }
+      : null;
 
   useEffect(() => {
     void getLocalAccountMergeSummary().then(setMergeSummary);
@@ -141,7 +130,6 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
         await unlinkLocalAccount();
         await refetch();
         await refreshLocalSummary();
-        setCurrentUser(null);
         setNotice('已登出。你的本機資料仍保留在這台裝置。');
         resetAuthForm();
       } catch (nextError) {
