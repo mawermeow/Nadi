@@ -816,7 +816,7 @@ export function RecordDashboard({
   const pageHeader = activeTab === 'dashboard'
     ? null
     : (
-        <section className="overflow-hidden rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[0_24px_80px_rgba(31,42,42,0.08)] sm:p-6 lg:p-8">
+        <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-6 lg:p-8">
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
             Nadi / {getSummaryViewTitle(activeTab)}
           </p>
@@ -836,7 +836,7 @@ export function RecordDashboard({
   const recordForm = (
     <form
       onSubmit={handleCreateRecord}
-      className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6"
+      className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6"
     >
       <div>
         <h2 className="text-xl font-semibold">
@@ -1025,7 +1025,7 @@ export function RecordDashboard({
   const itemForm = (
     <form
       onSubmit={handleCreateItem}
-      className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6"
+      className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6"
     >
       <div>
         <h2 className="text-xl font-semibold">新增項目</h2>
@@ -1148,7 +1148,7 @@ export function RecordDashboard({
   );
 
   const recordsListPanel = (
-    <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
+    <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold">紀錄列表</h2>
@@ -1285,7 +1285,7 @@ export function RecordDashboard({
 
   const settingsPanel = (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-6">
-      <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
+      <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
         <div>
           <h2 className="text-xl font-semibold">項目列表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
@@ -1351,7 +1351,7 @@ export function RecordDashboard({
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
+      <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
         <h2 className="text-xl font-semibold">已封存項目</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
           已封存項目不會出現在預設選單，但歷史紀錄仍可保留與查詢。
@@ -1425,20 +1425,10 @@ export function RecordDashboard({
         <DashboardView
           userEmail={userEmail}
           stats={
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
-                <p className="text-sm text-[var(--muted)]">啟用中項目</p>
-                <p className="mt-2 text-xl font-semibold sm:text-2xl">{activeItems.length}</p>
-              </article>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
                 <p className="text-sm text-[var(--muted)]">近期紀錄</p>
                 <p className="mt-2 text-xl font-semibold sm:text-2xl">{records.length}</p>
-              </article>
-              <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
-                <p className="text-sm text-[var(--muted)]">症狀項目</p>
-                <p className="mt-2 text-xl font-semibold text-rose-700 sm:text-2xl">
-                  {symptomItems.length}
-                </p>
               </article>
               <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
                 <p className="text-sm text-[var(--muted)]">同步</p>
@@ -1513,7 +1503,7 @@ export function RecordDashboard({
         <SettingsView
           itemManagement={settingsPanel}
           syncStatus={
-            <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
+            <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
               <h2 className="text-xl font-semibold">同步狀態</h2>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-2xl border border-[var(--line)] bg-white p-4">

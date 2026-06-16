@@ -149,7 +149,7 @@ export function ItemDashboard({
   return (
     <main className="min-h-screen px-4 py-6 sm:px-6 sm:py-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-        <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_24px_80px_rgba(31,42,42,0.08)] sm:p-8">
+        <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-6 sm:p-8">
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
             Nadi / Phase 2
           </p>
@@ -171,7 +171,7 @@ export function ItemDashboard({
         <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <form
             onSubmit={handleCreateItem}
-            className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6"
+            className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 backdrop-blur sm:p-6"
           >
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -317,7 +317,7 @@ export function ItemDashboard({
             />
           </form>
 
-          <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
+          <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 backdrop-blur sm:p-6">
             <div>
               <h2 className="text-xl font-semibold">項目列表</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">

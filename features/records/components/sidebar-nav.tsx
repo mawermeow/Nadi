@@ -23,7 +23,7 @@ export function SidebarNav({
   tabs,
 }: SidebarNavProps) {
   return (
-    <aside className="hidden w-72 shrink-0 flex-col overflow-hidden rounded-[2rem] border border-[var(--line)] bg-white/88 p-5 shadow-[0_18px_48px_rgba(31,42,42,0.08)] backdrop-blur lg:flex lg:h-full lg:min-h-0">
+    <aside className="hidden w-72 shrink-0 flex-col overflow-hidden rounded-[2rem] border border-[var(--line)] bg-white/88 p-5 backdrop-blur lg:flex lg:h-full lg:min-h-0">
       <div className="shrink-0">
         <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
           Nadi
