@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const user = await requireUser();
     const query = listRecordsQuerySchema.parse({
       itemId: request.nextUrl.searchParams.get('itemId') ?? undefined,
+      itemType: request.nextUrl.searchParams.get('itemType') ?? undefined,
       from: request.nextUrl.searchParams.get('from') ?? undefined,
       to: request.nextUrl.searchParams.get('to') ?? undefined,
     });

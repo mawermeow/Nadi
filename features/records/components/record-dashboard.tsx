@@ -33,6 +33,7 @@ type RecordFormState = {
 };
 
 type FilterState = {
+  itemType: 'metric' | 'symptom';
   itemId: string;
   from: string;
   to: string;
@@ -115,6 +116,7 @@ export function RecordDashboard({
     note: '',
   });
   const [filterState, setFilterState] = useState<FilterState>({
+    itemType: initialRecordItemType,
     itemId: '',
     from: '',
     to: '',
@@ -141,6 +143,10 @@ export function RecordDashboard({
   const archivedItems = useMemo(
     () => items.filter((item) => item.archived),
     [items],
+  );
+  const timelineSelectableItems = useMemo(
+    () => items.filter((item) => item.type === filterState.itemType),
+    [filterState.itemType, items],
   );
   const selectedItem = useMemo(
     () =>
@@ -186,6 +192,14 @@ export function RecordDashboard({
     setRecordFormState((currentState) => ({
       ...currentState,
       itemId: nextSelectableItem?.id ?? '',
+    }));
+  }
+
+  function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom') {
+    setFilterState((currentState) => ({
+      ...currentState,
+      itemType: nextType,
+      itemId: '',
     }));
   }
 
@@ -324,6 +338,8 @@ export function RecordDashboard({
     if (filterState.itemId) {
       params.set('itemId', filterState.itemId);
     }
+
+    params.set('itemType', filterState.itemType);
 
     const from = dateInputToRange(filterState.from, 'start');
     const to = dateInputToRange(filterState.to, 'end');
@@ -577,6 +593,25 @@ export function RecordDashboard({
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-2 sm:col-span-3">
+                <span className="text-sm font-medium">查詢類型</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {itemTypeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => updateTimelineItemTypeTab(option.value)}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                        filterState.itemType === option.value
+                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                          : 'border-[var(--line)] bg-white text-[var(--foreground)]'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <label className="grid gap-2">
                 <span className="text-sm font-medium">項目篩選</span>
                 <select
@@ -586,8 +621,10 @@ export function RecordDashboard({
                   }
                   className="rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-base outline-none transition focus:border-[var(--accent)]"
                 >
-                  <option value="">全部項目</option>
-                  {items.map((item) => (
+                  <option value="">
+                    全部{filterState.itemType === 'metric' ? '指標' : '症狀'}
+                  </option>
+                  {timelineSelectableItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.title}
                       {item.archived ? '（已封存）' : ''}
@@ -629,7 +666,12 @@ export function RecordDashboard({
               <button
                 type="button"
                 onClick={() => {
-                  setFilterState({ itemId: '', from: '', to: '' });
+                  setFilterState({
+                    itemType: initialRecordItemType,
+                    itemId: '',
+                    from: '',
+                    to: '',
+                  });
                   setTimelineError(null);
                   setRecords(initialRecords);
                 }}

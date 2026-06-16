@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-import { itemIdParamSchema, itemValueTypeSchema } from '@/features/items/schema';
+import {
+  itemIdParamSchema,
+  itemTypeSchema,
+  itemValueTypeSchema,
+} from '@/features/items/schema';
 
 const optionalNoteSchema = z.preprocess((value) => {
   if (typeof value === 'string' && value.trim() === '') {
@@ -50,6 +54,7 @@ export const updateRecordSchema = z
 export const listRecordsQuerySchema = z
   .object({
     itemId: itemIdParamSchema.optional(),
+    itemType: itemTypeSchema.optional(),
     from: isoDateStringSchema.optional(),
     to: isoDateStringSchema.optional(),
   })

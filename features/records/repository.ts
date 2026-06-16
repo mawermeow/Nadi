@@ -5,6 +5,7 @@ import { getDb } from '@/lib/db/client';
 
 type ListRecordsOptions = {
   itemId?: string;
+  itemType?: 'metric' | 'symptom';
   from?: Date;
   to?: Date;
   limit?: number;
@@ -44,6 +45,10 @@ export async function listRecordsByUserId(
 
   if (options.itemId) {
     conditions.push(eq(records.itemId, options.itemId));
+  }
+
+  if (options.itemType) {
+    conditions.push(eq(items.type, options.itemType));
   }
 
   if (options.from) {

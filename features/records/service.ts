@@ -157,6 +157,10 @@ export async function listRecordsForUser(
     options.itemId = validatedQuery.itemId;
   }
 
+  if (validatedQuery.itemType) {
+    options.itemType = validatedQuery.itemType;
+  }
+
   if (validatedQuery.from && validatedQuery.to) {
     const range = normalizeRange(
       new Date(validatedQuery.from),
