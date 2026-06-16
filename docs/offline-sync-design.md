@@ -4,151 +4,162 @@
 
 在不推翻現有 Next.js + PostgreSQL + Drizzle 架構的前提下，將 Nadi 的資料設計方向調整為 offline-first sync。
 
-目前已進入 Phase B：server sync contract preparation。
+目前已進入 Phase C：Sync API skeleton。
 
-目前階段重點：
+目前已完成：
 
-- 保留既有 API runtime 形狀與前端相容性
-- create API 支援 client-generated UUID
-- update API 補上 version check
-- delete API 改為 soft delete
-- 不實作 IndexedDB
-- 不新增 sync API
-- 不改 UI
-- 不改掉既有 PostgreSQL 資料流
+- schema preparation
+- server sync contract
+- sync push / pull skeleton
 
-核心原則：
+目前仍未完成：
 
-- PostgreSQL 仍是雲端主資料庫
-- Web / PWA 階段的本機資料層以 IndexedDB 為主
-- 不使用 localStorage 作為主要資料庫
-- 未來若包成 iOS App，可將本機儲存層替換或擴充為 SQLite
-- 所有資料 id 維持 UUID
+- IndexedDB local store
+- background sync
+- operation queue persistence
+- idempotency persistence
+- conflict resolution UI
 
-## 目前現況
+## 目前狀態
 
-目前系統仍屬於 online-first，但已具備部分 sync-ready server contract：
+目前系統仍屬於 online-first，但 server 已具備接收 pending operations 與回傳 pull changes 的基本能力。
 
-1. Client 直接呼叫 `/v1/items`、`/v1/records`、`/v1/reports/*`
-2. Server 驗證使用者與 payload
-3. Service / Repository 直接讀寫 PostgreSQL
-4. Client 以 API response 更新畫面
+已具備：
 
-目前已具備：
-
-- 所有主要資料使用 UUID
-- item 與 record 都有 `created_at` / `updated_at`
-- user-owned data 透過 `user_id` 隔離
-- item / record schema 已有 sync metadata 欄位
 - create API 可接受 client-generated UUID
 - update API 已可做 version check
 - delete API 已改為 soft delete
+- sync push / pull route 已建立
+- pull 可回傳 tombstones
 
-目前仍未具備：
+未具備：
 
-- IndexedDB local store
-- operation queue
-- sync API
-- delta sync / batch sync
-- conflict resolution UI
+- client local store
+- background sync loop
+- reconnect retry
+- operation dedup persistence
 
-## Schema 狀態
+## Sync Push
 
-### items
-
-目前已存在：
-
-- `sync_status`
-- `version`
-- `deleted_at`
-- `last_synced_at`
-- `device_id`
-
-### records
-
-目前已存在：
-
-- `sync_status`
-- `version`
-- `deleted_at`
-- `last_synced_at`
-- `device_id`
-
-補充：
-
-- `syncStatus` 目前 server-side default 為 `synced`
-- `deletedAt` 現在已開始被 delete API 使用
-- `version` 現在已開始被 update API 用於 version check
-- `deviceId` 目前只是預留，不代表 client 已送出 device id
-
-## API 狀態
-
-### 已完成的 server contract
-
-- `POST /v1/items`、`POST /v1/records`
-  - 可接受 client-generated UUID
-  - 未提供 id 時，server 仍會自動產生 UUID
-  - 若 id 已存在，回傳 `409 conflict`
-
-- `PATCH /v1/items/:id`、`PATCH /v1/records/:id`
-  - 可接受 `version`
-  - 若 version 不一致，回傳 `409 conflict`
-  - 若 version 一致，server 會將 `version + 1`
-  - 若 body 沒有 `version`，目前仍暫時允許更新，屬於 transitional behavior
-
-- `DELETE /v1/items/:id`、`DELETE /v1/records/:id`
-  - 改為 soft delete
-  - 不再做 hard delete
-
-- `GET /v1/items`、`GET /v1/records`
-  - 預設排除 soft-deleted rows
-
-### 尚未完成的部分
-
-- `deviceId` 尚未進入既有 create / update API contract
-- sync API 尚未實作
-- `updatedAfter` / cursor pull 尚未實作
-- accepted / rejected / conflicts / latestChanges 回應格式尚未實作
-
-## Soft Delete 策略
-
-目前：
-
-- item soft delete 不做 cascade soft delete
-- record soft delete 只會影響該筆 record
-
-這代表：
-
-- soft-deleted item 不會自動將既有 records 一起 tombstone
-- 既有 records 仍保留在資料庫
-- 預設 record list 會排除 parent item 已 soft delete 的資料
-
-這是 Phase B 的保守策略，先避免一次重寫過多 domain 行為。
-
-## 後續建議
-
-### Phase C：Sync API
-
-建議新增：
+Route:
 
 - `POST /v1/sync/push`
+
+Request 包含：
+
+- `deviceId`
+- `operations[]`
+
+每筆 operation 目前包含：
+
+- `operationId`
+- `entityType`
+- `operationType`
+- `entityId`
+- `baseVersion`
+- `payload`
+- `clientCreatedAt`
+- `clientUpdatedAt`
+
+目前支援 entity：
+
+- `item`
+- `record`
+
+目前支援 operation：
+
+- `create`
+- `update`
+- `delete`
+
+處理方式：
+
+- `create`
+  - `entityId` 不存在時建立資料
+  - `entityId` 已存在時回 `rejected`
+- `update`
+  - 使用 `baseVersion` 比對 server `version`
+  - mismatch 時回 `conflicts`
+  - match 時更新並 `version + 1`
+- `delete`
+  - 使用 soft delete
+  - 設定 `deletedAt`
+  - `version + 1`
+
+## Sync Pull
+
+Route:
+
 - `POST /v1/sync/pull`
 
-預期 response contract：
+Request 包含：
 
-- `accepted`
-- `rejected`
-- `conflicts`
-- `latestChanges`
+- `deviceId`
+- `lastPulledAt`
 
-### Phase D：Client local store
+Response 包含：
 
-- 導入 IndexedDB
-- 建立 local repositories
-- UI 優先讀本機資料
+- `items[]`
+- `records[]`
+- `tombstones[]`
+- `serverTime`
 
-### Phase E：Background sync
+Pull 規則：
 
-- operation queue
-- reconnect 後批次同步
-- conflict 標示與 retry
+- 若沒有 `lastPulledAt`，回傳完整初始資料
+- 若有 `lastPulledAt`，回傳 `updatedAt > lastPulledAt` 的變更
+- `items[]` / `records[]` 為未 soft delete 的資料
+- `tombstones[]` 為已 soft delete 的刪除事件
+
+## Conflict 偵測
+
+目前 conflict 偵測方式很直接：
+
+- 對 `update` / `delete` 比對 `baseVersion`
+- 若 `baseVersion !== currentVersion`，回傳 conflict
+
+目前回傳的 conflict 內容包含：
+
+- `operationId`
+- `entityType`
+- `operationType`
+- `entityId`
+- `baseVersion`
+- `currentVersion`
+- `serverEntity`
+
+這一版只做到偵測 conflict，不做自動 merge。
+
+## Tombstone 策略
+
+目前 tombstone 來源是：
+
+- `deletedAt != null` 的 item
+- `deletedAt != null` 的 record
+
+pull 時會回傳 tombstones，讓未來 local store 能同步刪除事件，而不只是同步活資料。
+
+## Idempotency 策略
+
+長期方向：
+
+- `operationId` 應被 server 持久化
+- 相同 `operationId` 不應重複套用
+
+目前 skeleton 限制：
+
+- 尚未建立 `sync_operations` table
+- 尚未儲存 `operationId`
+- 尚未做到真正 server-side idempotency
+
+因此目前只是在文件與型別上保留 `operationId`，方便下一階段接續實作。
+
+## Local Store 與 Background Sync
+
+目前尚未導入：
+
+- IndexedDB local store
+- background sync
+- 自動 retry / reconnect flush
+
+所以這一階段的 sync API 仍是 server-side skeleton，不代表整個 offline-first 流程已經完整。

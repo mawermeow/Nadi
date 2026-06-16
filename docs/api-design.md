@@ -1,20 +1,21 @@
 # API Design
 
-目前正式 API 仍是 online-first CRUD，但已完成 Phase B 的 server sync contract preparation。
+目前 API 仍以 online-first CRUD 為主，但已逐步補上 offline-first 所需的 server contract。
 
-目前已具備：
+目前已完成：
 
 - create API 可接受 client-generated UUID
 - update API 可接受 `version` 並做 optimistic concurrency check
 - items / records delete 已改為 soft delete
 - GET list 預設排除 soft-deleted rows
+- sync push / pull skeleton 已建立
 
-目前仍未實作：
+目前尚未完成：
 
-- sync API
 - IndexedDB local store
-- operation queue
-- conflict resolution UI
+- background sync
+- sync operation idempotency persistence
+- 完整 conflict resolution UI
 
 ## Base Rules
 
@@ -34,6 +35,8 @@
 - `POST /v1/records`
 - `PATCH /v1/records/:recordId`
 - `DELETE /v1/records/:recordId`
+- `POST /v1/sync/push`
+- `POST /v1/sync/pull`
 - `GET /v1/reports/summary`
 - `GET /v1/reports/correlation`
 
@@ -57,25 +60,6 @@ AI insights remain outside the current MVP scope.
 Query params:
 
 - `includeArchived=true`：包含已封存項目，但仍排除 soft-deleted rows
-
-Response:
-
-```json
-{
-  "items": [
-    {
-      "id": "uuid",
-      "title": "睡眠",
-      "type": "metric",
-      "unit": "小時",
-      "valueType": "number",
-      "archived": false,
-      "version": 3,
-      "createdAt": "2026-06-15T12:00:00.000Z"
-    }
-  ]
-}
-```
 
 ### `POST /v1/items`
 
@@ -103,15 +87,6 @@ Rules:
 - `scale` 型項目必須提供 `scaleMin` 與 `scaleMax`
 
 ### `PATCH /v1/items/:itemId`
-
-目前支援：
-
-- 更新 `title`
-- 更新或清空 `unit`
-- 更新 `archived`
-- 對 scale item 更新 `scaleMin` / `scaleMax`
-
-`PATCH` 不接受 `user_id`，只會更新當前登入使用者自己的項目。
 
 Version 規則：
 
@@ -144,14 +119,6 @@ Rules:
 
 預設回傳未 soft delete 的近期紀錄，依 `recordedAt` 由新到舊排序。
 
-Query params:
-
-- `itemId`
-- `from`
-- `to`
-
-其中 `from` / `to` 必須同時提供，格式為 ISO 8601。
-
 ### `POST /v1/records`
 
 Request body:
@@ -178,15 +145,6 @@ Rules:
 
 ### `PATCH /v1/records/:recordId`
 
-目前支援更新：
-
-- `itemId`
-- `value`
-- `recordedAt`
-- `note`
-
-更新時仍會依據目標 item 的 `valueType` 驗證 `value`。
-
 Version 規則：
 
 - 可接受 `version`
@@ -206,39 +164,133 @@ Rules:
 - `version + 1`
 - response 維持 `{ "success": true }`
 
-## Summary Report API
+## Sync API
 
-### `GET /v1/reports/summary`
+## `POST /v1/sync/push`
 
-Query params:
+Request body:
 
-- `from`
-- `to`
+```json
+{
+  "deviceId": "device-local",
+  "operations": [
+    {
+      "operationId": "op-uuid",
+      "entityType": "record",
+      "operationType": "update",
+      "entityId": "uuid",
+      "baseVersion": 2,
+      "payload": {
+        "value": 7,
+        "recordedAt": "2026-06-16T01:00:00.000Z"
+      },
+      "clientCreatedAt": "2026-06-16T00:00:00.000Z",
+      "clientUpdatedAt": "2026-06-16T01:00:00.000Z"
+    }
+  ]
+}
+```
 
-Rules:
+Supported entities:
 
-- `from` / `to` 必填
-- 需為 ISO 8601 格式
-- 查詢範圍不可超過 `NADI_REPORT_MAX_RANGE_DAYS`
-- 只統計目前登入使用者自己的 records
+- `item`
+- `record`
 
-## Correlation Report API
+Supported operations:
 
-### `GET /v1/reports/correlation`
+- `create`
+- `update`
+- `delete`
 
-Query params:
+Validation rules:
 
-- `symptomItemId`
-- `from`
-- `to`
-- `windowHours`
+- `deviceId` 必填
+- `operationId` 必填
+- `entityType` 必須是 `item | record`
+- `operationType` 必須是 `create | update | delete`
+- `entityId` 必須是合法 UUID
+- `baseVersion` 對 `update` / `delete` 必填
+- `payload` 會依 entity / operation 做基本驗證
 
-Rules:
+Response body:
 
-- `symptomItemId` 必須是目前登入使用者自己的 symptom item
-- `from` / `to` 必填
-- 需為 ISO 8601 格式
-- 查詢範圍不可超過 `NADI_REPORT_MAX_RANGE_DAYS`
-- `windowHours` 需為正整數，且目前限制在 168 小時內
-- 報表只使用目前登入使用者自己的 records
-- 結果只描述「可能相關」的模式，不表示因果關係
+```json
+{
+  "accepted": [],
+  "rejected": [],
+  "conflicts": [],
+  "serverTime": "2026-06-16T12:00:00.000Z"
+}
+```
+
+Push 規則：
+
+- `create`
+  - 若 `entityId` 不存在，建立資料
+  - 若 `entityId` 已存在，回 `rejected`
+- `update`
+  - 使用 `baseVersion` 檢查版本
+  - 若版本不一致，回 `conflicts`
+  - 若版本一致，更新資料並 `version + 1`
+- `delete`
+  - 使用 soft delete
+  - 設定 `deletedAt`
+  - `version + 1`
+
+Conflict 偵測方式：
+
+- compare `baseVersion` with current server `version`
+- mismatch 時回傳 `currentVersion` 與 `serverEntity`
+
+## `POST /v1/sync/pull`
+
+Request body:
+
+```json
+{
+  "deviceId": "device-local",
+  "lastPulledAt": "2026-06-16T00:00:00.000Z"
+}
+```
+
+Response body:
+
+```json
+{
+  "items": [],
+  "records": [],
+  "tombstones": [],
+  "serverTime": "2026-06-16T12:00:00.000Z"
+}
+```
+
+Pull 規則：
+
+- 若沒有 `lastPulledAt`，回傳完整初始資料
+- 若有 `lastPulledAt`，回傳 `updatedAt > lastPulledAt` 的變更
+- `items[]` / `records[]` 只放尚未 soft delete 的資料
+- `tombstones[]` 放 `deletedAt != null` 的刪除事件
+
+Tombstone 用途：
+
+- 讓未來 client local store 能知道刪除事件
+- sync pull 不只回傳活資料，也要回傳刪除事件
+
+## Idempotency Note
+
+`operationId` 的長期設計目標是 server-side idempotency。
+
+未來應做：
+
+- 將 `operationId` 儲存在 server
+- server 避免重複套用相同 operation
+
+目前 skeleton 限制：
+
+- 尚未建立 `sync_operations` table
+- 尚未持久化 `operationId`
+- 若相同 operation 被重送，目前無法保證完整冪等性
+
+## Reports
+
+報表查詢目前已排除 soft-deleted `items` / `records`。
