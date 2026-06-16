@@ -2,6 +2,13 @@
 
 import { useMemo, useState, useTransition } from 'react';
 
+import { ActionButton } from '@/components/ui/action-button';
+import {
+  ClockIcon,
+  LoaderIcon,
+  RefreshIcon,
+  RotateCcwIcon,
+} from '@/components/ui/icons';
 import { Select } from '@/components/forms/select';
 import { TextInput } from '@/components/forms/text-input';
 import type { ItemResponse } from '@/features/items/api';
@@ -205,13 +212,14 @@ export function CorrelationReportSection({
                     key={windowHours}
                     type="button"
                     onClick={() => updateFilter('windowHours', windowHours)}
-                    className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                    className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
                       isActive
                         ? 'border-rose-400 bg-rose-500 text-white'
                         : 'border-[var(--line)] bg-white text-[var(--foreground)]'
                     }`}
                   >
-                    前 {windowHours} 小時
+                    <ClockIcon size={18} />
+                    <span>{windowHours}h</span>
                   </button>
                 );
               })}
@@ -219,22 +227,26 @@ export function CorrelationReportSection({
           </div>
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <button
+            <ActionButton
               type="button"
-              onClick={fetchReport}
+              variant="symptom"
+              iconOnly
               disabled={isLoading || !effectiveSymptomItemId}
-              className="min-h-12 rounded-2xl bg-rose-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {isLoading ? '整理關聯中…' : '更新觀察'}
-            </button>
-            <button
+              icon={
+                isLoading ? <LoaderIcon size={18} /> : <RefreshIcon size={18} />
+              }
+              label={isLoading ? '整理關聯中…' : '更新觀察'}
+              onClick={fetchReport}
+            />
+            <ActionButton
               type="button"
-              onClick={resetFilter}
+              variant="secondary"
+              iconOnly
               disabled={isLoading}
-              className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
-            >
-              回到預設條件
-            </button>
+              icon={<RotateCcwIcon size={18} />}
+              label="回到預設條件"
+              onClick={resetFilter}
+            />
           </div>
         </>
       )}

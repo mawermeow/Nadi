@@ -8,6 +8,24 @@ import { DashboardView } from '@/features/records/components/dashboard-view';
 import { RecordsListView } from '@/features/records/components/records-list-view';
 import { ReportsView } from '@/features/records/components/reports-view';
 import { SettingsView } from '@/features/records/components/settings-view';
+import { ActionButton } from '@/components/ui/action-button';
+import { IconButton } from '@/components/ui/icon-button';
+import {
+  ActivityIcon,
+  EyeIcon,
+  EyeOffIcon,
+  ArrowRightIcon,
+  HeartPulseIcon,
+  LoaderIcon,
+  PencilIcon,
+  PlusIcon,
+  SaveIcon,
+  SearchIcon,
+  TrashIcon,
+  Undo2Icon,
+  XIcon,
+  type AppTabIconName,
+} from '@/components/ui/icons';
 import { Select } from '@/components/forms/select';
 import { TextInput } from '@/components/forms/text-input';
 import { Textarea } from '@/components/forms/textarea';
@@ -85,12 +103,17 @@ const defaultItemFormState: ItemFormState = {
 };
 
 const appTabs = [
-  { id: 'dashboard', label: 'Dashboard', mobileLabel: '首頁', icon: '⌂' },
-  { id: 'create', label: '新增紀錄', mobileLabel: '新增', icon: '+' },
-  { id: 'records', label: '紀錄列表', mobileLabel: '紀錄', icon: '≣' },
-  { id: 'reports', label: '報表', mobileLabel: '報表', icon: '◔' },
-  { id: 'settings', label: '設定', mobileLabel: '設定', icon: '⚙' },
-] as const;
+  { id: 'dashboard', label: 'Dashboard', mobileLabel: '首頁', icon: 'dashboard' },
+  { id: 'create', label: '新增紀錄', mobileLabel: '新增', icon: 'create' },
+  { id: 'records', label: '紀錄列表', mobileLabel: '紀錄', icon: 'records' },
+  { id: 'reports', label: '報表', mobileLabel: '報表', icon: 'reports' },
+  { id: 'settings', label: '設定', mobileLabel: '設定', icon: 'settings' },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  label: string;
+  mobileLabel: string;
+  icon: AppTabIconName;
+}>;
 
 const itemTypeOptions = [
   { value: 'metric', label: '指標' },
@@ -745,21 +768,24 @@ export function RecordDashboard({
               </div>
               {!compact ? (
                 <div className="flex gap-2 sm:self-start">
-                  <button
-                    type="button"
+                  <IconButton
+                    label="編輯"
+                    icon={<PencilIcon size={18} />}
                     onClick={() => populateRecordFormForEdit(record)}
-                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
-                  >
-                    編輯
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteRecord(record.id)}
+                  />
+                  <IconButton
+                    label={isDeletingRecord ? '處理中…' : '刪除'}
+                    icon={
+                      isDeletingRecord ? (
+                        <LoaderIcon size={18} />
+                      ) : (
+                        <TrashIcon size={18} />
+                      )
+                    }
+                    variant="danger"
                     disabled={isDeletingRecord}
-                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
-                  >
-                    {isDeletingRecord ? '處理中…' : '刪除'}
-                  </button>
+                    onClick={() => deleteRecord(record.id)}
+                  />
                 </div>
               ) : null}
             </div>
@@ -812,16 +838,22 @@ export function RecordDashboard({
           <div className="grid gap-2">
             <span className="text-sm font-medium">紀錄類型</span>
             <div className="grid grid-cols-2 gap-2">
-              {itemTypeOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => updateRecordItemTypeTab(option.value)}
-                  className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(recordItemTypeTab, option.value)}`}
-                >
-                  {option.label}
-                </button>
-              ))}
+              {itemTypeOptions.map((option) => {
+                const TypeIcon =
+                  option.value === 'symptom' ? HeartPulseIcon : ActivityIcon;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => updateRecordItemTypeTab(option.value)}
+                    className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(recordItemTypeTab, option.value)}`}
+                  >
+                    <TypeIcon size={18} />
+                    <span>{option.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -931,31 +963,43 @@ export function RecordDashboard({
         </p>
       ) : null}
 
-      <button
+      <ActionButton
         type="submit"
+        fullWidth
         disabled={
           activeItems.length === 0 ||
           selectableRecordItems.length === 0 ||
           isSubmittingRecord
         }
-        className="mt-5 min-h-12 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isSubmittingRecord
-          ? editingRecordId
-            ? '更新紀錄中…'
-            : '儲存紀錄中…'
-          : editingRecordId
-            ? '更新這筆紀錄'
-            : '儲存這筆紀錄'}
-      </button>
+        icon={
+          isSubmittingRecord ? (
+            <LoaderIcon size={18} />
+          ) : (
+            <SaveIcon size={18} />
+          )
+        }
+        label={
+          isSubmittingRecord
+            ? editingRecordId
+              ? '更新紀錄中…'
+              : '儲存紀錄中…'
+            : editingRecordId
+              ? '更新這筆紀錄'
+              : '儲存這筆紀錄'
+        }
+        className="mt-5 text-base"
+      />
       {editingRecordId ? (
-        <button
+        <ActionButton
           type="button"
+          variant="secondary"
+          fullWidth
+          iconOnly
+          icon={<XIcon size={18} />}
+          label="取消編輯"
           onClick={resetRecordForm}
-          className="mt-3 min-h-12 w-full rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
-        >
-          取消編輯
-        </button>
+          className="mt-3"
+        />
       ) : null}
     </form>
   );
@@ -990,16 +1034,22 @@ export function RecordDashboard({
         <div className="grid gap-2">
           <span className="text-sm font-medium">項目類型</span>
           <div className="grid grid-cols-2 gap-2">
-            {itemTypeOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => updateItemFormValue('type', option.value)}
-                className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(itemFormState.type, option.value)}`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {itemTypeOptions.map((option) => {
+              const TypeIcon =
+                option.value === 'symptom' ? HeartPulseIcon : ActivityIcon;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => updateItemFormValue('type', option.value)}
+                  className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(itemFormState.type, option.value)}`}
+                >
+                  <TypeIcon size={18} />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1066,13 +1116,16 @@ export function RecordDashboard({
         </p>
       ) : null}
 
-      <button
+      <ActionButton
         type="submit"
+        fullWidth
         disabled={isSubmittingItem}
-        className="mt-5 min-h-12 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isSubmittingItem ? '建立項目中…' : '建立新項目'}
-      </button>
+        icon={
+          isSubmittingItem ? <LoaderIcon size={18} /> : <PlusIcon size={18} />
+        }
+        label={isSubmittingItem ? '建立項目中…' : '建立新項目'}
+        className="mt-5 text-base"
+      />
     </form>
   );
 
@@ -1094,16 +1147,22 @@ export function RecordDashboard({
         <div className="grid gap-2 lg:col-span-3">
           <span className="text-sm font-medium">查詢類型</span>
           <div className="grid grid-cols-2 gap-2">
-            {itemTypeOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => updateTimelineItemTypeTab(option.value)}
-                className={`min-h-12 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(filterState.itemType, option.value)}`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {itemTypeOptions.map((option) => {
+              const TypeIcon =
+                option.value === 'symptom' ? HeartPulseIcon : ActivityIcon;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => updateTimelineItemTypeTab(option.value)}
+                  className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${getItemTypeTabClass(filterState.itemType, option.value)}`}
+                >
+                  <TypeIcon size={18} />
+                  <span>{option.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         <label className="grid gap-2">
@@ -1142,16 +1201,26 @@ export function RecordDashboard({
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <button
+        <ActionButton
           type="button"
-          onClick={fetchTimeline}
+          iconOnly
           disabled={isLoadingTimeline}
-          className="min-h-12 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {isLoadingTimeline ? '整理紀錄中…' : '套用條件'}
-        </button>
-        <button
+          icon={
+            isLoadingTimeline ? (
+              <LoaderIcon size={18} />
+            ) : (
+              <SearchIcon size={18} />
+            )
+          }
+          label={isLoadingTimeline ? '整理紀錄中…' : '套用條件'}
+          onClick={fetchTimeline}
+        />
+        <ActionButton
           type="button"
+          variant="secondary"
+          iconOnly
+          icon={<Undo2Icon size={18} />}
+          label="回到近期列表"
           onClick={() => {
             setFilterState({
               itemType: initialRecordItemType,
@@ -1162,10 +1231,7 @@ export function RecordDashboard({
             setTimelineError(null);
             void loadLocalData();
           }}
-          className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
-        >
-          回到近期列表
-        </button>
+        />
       </div>
 
       {timelineError ? (
@@ -1247,14 +1313,19 @@ export function RecordDashboard({
                         : ''}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleArchive(item, true)}
+                  <IconButton
+                    label={isMutatingItem ? '處理中…' : '封存'}
+                    icon={
+                      isMutatingItem ? (
+                        <LoaderIcon size={18} />
+                      ) : (
+                        <EyeOffIcon size={18} />
+                      )
+                    }
                     disabled={isMutatingItem}
-                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-[var(--foreground)] sm:self-start"
-                  >
-                    {isMutatingItem ? '處理中…' : '封存'}
-                  </button>
+                    onClick={() => toggleArchive(item, true)}
+                    className="sm:self-start"
+                  />
                 </div>
               </article>
             ))
@@ -1295,14 +1366,19 @@ export function RecordDashboard({
                       </p>
                     ) : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toggleArchive(item, false)}
+                  <IconButton
+                    label={isMutatingItem ? '處理中…' : '恢復'}
+                    icon={
+                      isMutatingItem ? (
+                        <LoaderIcon size={18} />
+                      ) : (
+                        <EyeIcon size={18} />
+                      )
+                    }
                     disabled={isMutatingItem}
-                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium sm:self-start"
-                  >
-                    {isMutatingItem ? '處理中…' : '恢復'}
-                  </button>
+                    onClick={() => toggleArchive(item, false)}
+                    className="sm:self-start"
+                  />
                 </div>
               </article>
             ))
@@ -1369,13 +1445,15 @@ export function RecordDashboard({
             ) : (
               <div className="grid gap-3">
                 {renderRecords(records.slice(0, 3), true)}
-                <button
+                <ActionButton
                   type="button"
+                  variant="secondary"
+                  fullWidth
+                  iconOnly
+                  icon={<ArrowRightIcon size={18} />}
+                  label="查看全部紀錄"
                   onClick={() => navigateToTab('records')}
-                  className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium"
-                >
-                  查看全部紀錄
-                </button>
+                />
               </div>
             )
           }

@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 
+import { ActionButton } from '@/components/ui/action-button';
+import { LoaderIcon, SearchIcon, Undo2Icon } from '@/components/ui/icons';
 import { TextInput } from '@/components/forms/text-input';
 import type { SummaryReportResponse } from '@/features/reports/api';
 import {
@@ -128,22 +130,25 @@ export function SummaryReportSection({
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-        <button
+        <ActionButton
           type="button"
+          iconOnly
+          disabled={isLoading}
+          icon={
+            isLoading ? <LoaderIcon size={18} /> : <SearchIcon size={18} />
+          }
+          label={isLoading ? '整理摘要中…' : '更新摘要'}
           onClick={fetchReport}
-          disabled={isLoading}
-          className="min-h-12 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {isLoading ? '整理摘要中…' : '更新摘要'}
-        </button>
-        <button
+        />
+        <ActionButton
           type="button"
-          onClick={resetFilter}
+          variant="secondary"
+          iconOnly
           disabled={isLoading}
-          className="min-h-12 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm font-medium disabled:opacity-60"
-        >
-          回到預設區間
-        </button>
+          icon={<Undo2Icon size={18} />}
+          label="回到預設區間"
+          onClick={resetFilter}
+        />
       </div>
 
       {isLoading ? (

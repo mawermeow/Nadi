@@ -1,6 +1,7 @@
 'use client';
 
 import type { AppTabItem } from '@/features/records/components/bottom-tab-nav';
+import { AppTabIcon } from '@/components/ui/icons';
 
 type SidebarNavProps = {
   activeTab: string;
@@ -50,7 +51,7 @@ export function SidebarNav({
                   : 'bg-[var(--surface)] text-[var(--foreground)]'
               }`}
             >
-              <span className="text-lg leading-none">{tab.icon}</span>
+              <AppTabIcon name={tab.icon} size={20} />
               <span className="text-sm font-medium">{tab.label}</span>
             </button>
           );

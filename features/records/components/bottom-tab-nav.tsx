@@ -1,10 +1,12 @@
 'use client';
 
+import { AppTabIcon, type AppTabIconName } from '@/components/ui/icons';
+
 export type AppTabItem = {
   id: string;
   label: string;
   mobileLabel: string;
-  icon: string;
+  icon: AppTabIconName;
 };
 
 type BottomTabNavProps = {
@@ -35,7 +37,7 @@ export function BottomTabNav({
                   : 'bg-[var(--surface)] text-[var(--muted)]'
               }`}
             >
-              <span className="text-base leading-none">{tab.icon}</span>
+              <AppTabIcon name={tab.icon} size={18} />
               <span className="mt-1 text-[11px] font-medium leading-none">
                 {tab.mobileLabel}
               </span>

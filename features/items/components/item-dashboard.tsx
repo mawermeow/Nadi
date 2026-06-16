@@ -2,6 +2,16 @@
 
 import { useMemo, useState, useTransition } from 'react';
 
+import { ActionButton } from '@/components/ui/action-button';
+import { IconButton } from '@/components/ui/icon-button';
+import {
+  ActivityIcon,
+  EyeIcon,
+  EyeOffIcon,
+  HeartPulseIcon,
+  LoaderIcon,
+  PlusIcon,
+} from '@/components/ui/icons';
 import { Select } from '@/components/forms/select';
 import { TextInput } from '@/components/forms/text-input';
 import type { ItemResponse } from '@/features/items/api';
@@ -190,20 +200,26 @@ export function ItemDashboard({
               <div className="grid gap-2">
                 <span className="text-sm font-medium">項目類型</span>
                 <div className="grid grid-cols-2 gap-2">
-                  {itemTypeOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => updateFormValue('type', option.value)}
-                      className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
-                        formState.type === option.value
-                          ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
-                          : 'border-[var(--line)] bg-white text-[var(--foreground)]'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+                  {itemTypeOptions.map((option) => {
+                    const TypeIcon =
+                      option.value === 'symptom' ? HeartPulseIcon : ActivityIcon;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => updateFormValue('type', option.value)}
+                        className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                          formState.type === option.value
+                            ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                            : 'border-[var(--line)] bg-white text-[var(--foreground)]'
+                        }`}
+                      >
+                        <TypeIcon size={18} />
+                        <span>{option.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -289,13 +305,16 @@ export function ItemDashboard({
               </p>
             ) : null}
 
-            <button
+            <ActionButton
               type="submit"
+              fullWidth
               disabled={isSubmitting}
-              className="mt-5 w-full rounded-2xl bg-[var(--accent)] px-4 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? '建立中…' : '建立項目'}
-            </button>
+              icon={
+                isSubmitting ? <LoaderIcon size={18} /> : <PlusIcon size={18} />
+              }
+              label={isSubmitting ? '建立中…' : '建立項目'}
+              className="mt-5 text-base"
+            />
           </form>
 
           <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
@@ -335,14 +354,12 @@ export function ItemDashboard({
                             : ''}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleArchive(item, true)}
+                      <IconButton
+                        label="封存"
+                        icon={<EyeOffIcon size={18} />}
                         disabled={isMutating}
-                        className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium text-[var(--foreground)]"
-                      >
-                        封存
-                      </button>
+                        onClick={() => toggleArchive(item, true)}
+                      />
                     </div>
                   </article>
                 ))
@@ -370,14 +387,12 @@ export function ItemDashboard({
                             {valueTypeOptions.find((option) => option.value === item.valueType)?.label}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleArchive(item, false)}
+                        <IconButton
+                          label="恢復"
+                          icon={<EyeIcon size={18} />}
                           disabled={isMutating}
-                          className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
-                        >
-                          恢復
-                        </button>
+                          onClick={() => toggleArchive(item, false)}
+                        />
                       </div>
                     </article>
                   ))
