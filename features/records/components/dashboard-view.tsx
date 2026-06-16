@@ -40,7 +40,7 @@ export function DashboardView({
             只保留最近幾筆，方便快速回頭確認。
           </p>
         </div>
-        <div className="mt-4">{recentRecords}</div>
+        <div className="mt-5 grid gap-3">{recentRecords}</div>
       </section>
     </div>
   );

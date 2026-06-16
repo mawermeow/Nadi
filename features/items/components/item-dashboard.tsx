@@ -48,7 +48,6 @@ export function ItemDashboard({
   userEmail,
 }: ItemDashboardProps) {
   const [items, setItems] = useState(initialItems);
-  const [showArchived, setShowArchived] = useState(false);
   const [formState, setFormState] = useState(defaultFormState);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({});
@@ -150,7 +149,7 @@ export function ItemDashboard({
                 建立你的追蹤項目
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
-                先從最常記錄的項目開始。預設只顯示啟用中的項目，已封存項目可另外展開查看。
+                先從最常記錄的項目開始。預設只顯示啟用中的項目。
               </p>
             </div>
             <div className="rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)]">
@@ -300,20 +299,11 @@ export function ItemDashboard({
           </form>
 
           <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/80 p-5 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">項目列表</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  預設只顯示啟用中的項目。
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowArchived((value) => !value)}
-                className="rounded-2xl border border-[var(--line)] px-4 py-2 text-sm font-medium"
-              >
-                {showArchived ? '隱藏已封存' : '顯示已封存'}
-              </button>
+            <div>
+              <h2 className="text-xl font-semibold">項目列表</h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                預設只顯示啟用中的項目。
+              </p>
             </div>
 
             <div className="mt-5 grid gap-3">
@@ -359,43 +349,41 @@ export function ItemDashboard({
               )}
             </div>
 
-            {showArchived ? (
-              <div className="mt-6 border-t border-[var(--line)] pt-6">
-                <h3 className="text-base font-semibold">已封存項目</h3>
-                <div className="mt-3 grid gap-3">
-                  {archivedItems.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm text-[var(--muted)]">
-                      目前沒有已封存項目。
-                    </div>
-                  ) : (
-                    archivedItems.map((item) => (
-                      <article
-                        key={item.id}
-                        className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <h4 className="text-base font-semibold">{item.title}</h4>
-                            <p className="mt-2 text-sm text-[var(--muted)]">
-                              {item.type === 'metric' ? '指標' : '症狀'} /{' '}
-                              {valueTypeOptions.find((option) => option.value === item.valueType)?.label}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleArchive(item, false)}
-                            disabled={isMutating}
-                            className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
-                          >
-                            恢復
-                          </button>
+            <div className="mt-6 border-t border-[var(--line)] pt-6">
+              <h3 className="text-base font-semibold">已封存項目</h3>
+              <div className="mt-3 grid gap-3">
+                {archivedItems.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm text-[var(--muted)]">
+                    目前沒有已封存項目。
+                  </div>
+                ) : (
+                  archivedItems.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h4 className="text-base font-semibold">{item.title}</h4>
+                          <p className="mt-2 text-sm text-[var(--muted)]">
+                            {item.type === 'metric' ? '指標' : '症狀'} /{' '}
+                            {valueTypeOptions.find((option) => option.value === item.valueType)?.label}
+                          </p>
                         </div>
-                      </article>
-                    ))
-                  )}
-                </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleArchive(item, false)}
+                          disabled={isMutating}
+                          className="rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium"
+                        >
+                          恢復
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                )}
               </div>
-            ) : null}
+            </div>
           </section>
         </section>
       </div>

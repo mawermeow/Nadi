@@ -214,7 +214,6 @@ export function RecordDashboard({
   );
   const [items, setItems] = useState(initialItems);
   const [records, setRecords] = useState(initialRecords);
-  const [showArchived, setShowArchived] = useState(false);
   const [recordItemTypeTab, setRecordItemTypeTab] = useState<
     'metric' | 'symptom'
   >(initialRecordItemType);
@@ -854,58 +853,50 @@ export function RecordDashboard({
           </label>
 
           {selectedItem ? (
-            <>
-              <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-4 text-sm leading-6 text-[var(--muted)]">
-                目前要記錄的是「{selectedItem.title}」。類型：
-                {selectedItem.type === 'metric' ? '指標' : '症狀'} / 格式：
-                {getValueTypeLabel(selectedItem.valueType)}
-                {selectedItem.unit ? ` / 單位：${selectedItem.unit}` : ''}
-              </div>
-              <label className="grid gap-2">
-                <span className="text-sm font-medium">
-                  紀錄值
-                  {selectedItem.valueType === 'scale' &&
-                  selectedItem.scaleMin !== undefined &&
-                  selectedItem.scaleMax !== undefined
-                    ? ` (${selectedItem.scaleMin} - ${selectedItem.scaleMax})`
-                    : ''}
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">
+                紀錄值
+                {selectedItem.valueType === 'scale' &&
+                selectedItem.scaleMin !== undefined &&
+                selectedItem.scaleMax !== undefined
+                  ? ` (${selectedItem.scaleMin} - ${selectedItem.scaleMax})`
+                  : ''}
+              </span>
+              {selectedItem.valueType === 'boolean' ? (
+                <Select
+                  value={recordFormState.valueBoolean}
+                  onChange={(event) =>
+                    updateRecordFormValue(
+                      'valueBoolean',
+                      event.target.value as 'true' | 'false',
+                    )
+                  }
+                >
+                  <option value="true">是</option>
+                  <option value="false">否</option>
+                </Select>
+              ) : (
+                <TextInput
+                  inputMode={selectedItem.valueType === 'text' ? 'text' : 'decimal'}
+                  value={recordFormState.valueText}
+                  onChange={(event) =>
+                    updateRecordFormValue('valueText', event.target.value)
+                  }
+                  placeholder={
+                    selectedItem.valueType === 'text'
+                      ? '輸入你想記下的內容'
+                      : selectedItem.valueType === 'scale'
+                        ? '例如：3、5、7'
+                        : '例如：6.5'
+                  }
+                />
+              )}
+              {recordFieldErrors.value?.[0] ? (
+                <span className="text-sm text-rose-700">
+                  {recordFieldErrors.value[0]}
                 </span>
-                {selectedItem.valueType === 'boolean' ? (
-                  <Select
-                    value={recordFormState.valueBoolean}
-                    onChange={(event) =>
-                      updateRecordFormValue(
-                        'valueBoolean',
-                        event.target.value as 'true' | 'false',
-                      )
-                    }
-                  >
-                    <option value="true">是</option>
-                    <option value="false">否</option>
-                  </Select>
-                ) : (
-                  <TextInput
-                    inputMode={selectedItem.valueType === 'text' ? 'text' : 'decimal'}
-                    value={recordFormState.valueText}
-                    onChange={(event) =>
-                      updateRecordFormValue('valueText', event.target.value)
-                    }
-                    placeholder={
-                      selectedItem.valueType === 'text'
-                        ? '輸入你想記下的內容'
-                        : selectedItem.valueType === 'scale'
-                          ? '例如：3、5、7'
-                          : '例如：6.5'
-                    }
-                  />
-                )}
-                {recordFieldErrors.value?.[0] ? (
-                  <span className="text-sm text-rose-700">
-                    {recordFieldErrors.value[0]}
-                  </span>
-                ) : null}
-              </label>
-            </>
+              ) : null}
+            </label>
           ) : null}
 
           <label className="grid gap-2">
@@ -1211,20 +1202,11 @@ export function RecordDashboard({
   const settingsPanel = (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-6">
       <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 shadow-[0_10px_30px_rgba(31,42,42,0.05)] backdrop-blur sm:p-5 lg:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-semibold">項目列表</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              預設只顯示啟用中的項目；封存後會保留歷史紀錄，但不再出現在預設選單。
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowArchived((value) => !value)}
-            className="min-h-11 rounded-2xl border border-[var(--line)] px-4 py-2 text-sm font-medium"
-          >
-            {showArchived ? '隱藏已封存' : '顯示已封存'}
-          </button>
+        <div>
+          <h2 className="text-xl font-semibold">項目列表</h2>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            預設只顯示啟用中的項目；封存後會保留歷史紀錄，但不再出現在預設選單。
+          </p>
         </div>
 
         <div className="mt-5 grid gap-3">
@@ -1286,52 +1268,46 @@ export function RecordDashboard({
           已封存項目不會出現在預設選單，但歷史紀錄仍可保留與查詢。
         </p>
 
-        {showArchived ? (
-          <div className="mt-5 grid gap-3">
-            {archivedItems.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm leading-6 text-[var(--muted)]">
-                目前沒有已封存項目。
-              </div>
-            ) : (
-              archivedItems.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-semibold">{item.title}</h3>
-                      <p className="mt-2 text-sm text-[var(--muted)]">
-                        {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType)}
+        <div className="mt-5 grid gap-3">
+          {archivedItems.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm leading-6 text-[var(--muted)]">
+              目前沒有已封存項目。
+            </div>
+          ) : (
+            archivedItems.map((item) => (
+              <article
+                key={item.id}
+                className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold">{item.title}</h3>
+                    <p className="mt-2 text-sm text-[var(--muted)]">
+                      {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType)}
+                    </p>
+                    {getSyncStatusPresentation(item.syncStatus) ? (
+                      <p className="mt-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
+                        >
+                          {getSyncStatusPresentation(item.syncStatus)?.label}
+                        </span>
                       </p>
-                      {getSyncStatusPresentation(item.syncStatus) ? (
-                        <p className="mt-2">
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
-                          >
-                            {getSyncStatusPresentation(item.syncStatus)?.label}
-                          </span>
-                        </p>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleArchive(item, false)}
-                      disabled={isMutatingItem}
-                      className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium sm:self-start"
-                    >
-                      {isMutatingItem ? '處理中…' : '恢復'}
-                    </button>
+                    ) : null}
                   </div>
-                </article>
-              ))
-            )}
-          </div>
-        ) : (
-          <div className="mt-5 rounded-2xl border border-dashed border-[var(--line)] bg-stone-50 px-4 py-5 text-sm leading-6 text-[var(--muted)]">
-            點擊上方的「顯示已封存」，就能查看與恢復已封存項目。
-          </div>
-        )}
+                  <button
+                    type="button"
+                    onClick={() => toggleArchive(item, false)}
+                    disabled={isMutatingItem}
+                    className="min-h-11 rounded-2xl border border-[var(--line)] px-3 py-2 text-sm font-medium sm:self-start"
+                  >
+                    {isMutatingItem ? '處理中…' : '恢復'}
+                  </button>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
       </section>
     </section>
   );
@@ -1391,7 +1367,7 @@ export function RecordDashboard({
                 目前還沒有最近紀錄。可以先到「新增紀錄」記下一筆，再回到這裡快速確認。
               </div>
             ) : (
-              <>
+              <div className="grid gap-3">
                 {renderRecords(records.slice(0, 3), true)}
                 <button
                   type="button"
@@ -1400,7 +1376,7 @@ export function RecordDashboard({
                 >
                   查看全部紀錄
                 </button>
-              </>
+              </div>
             )
           }
         />
