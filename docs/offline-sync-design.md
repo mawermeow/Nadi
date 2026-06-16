@@ -4,17 +4,17 @@
 
 在不推翻現有 Next.js + PostgreSQL + Drizzle 架構的前提下，將 Nadi 的資料設計方向調整為 offline-first sync。
 
-目前已進入 Phase C：Sync API skeleton。
+目前已進入 Phase D：Client local store skeleton。
 
 目前已完成：
 
 - schema preparation
 - server sync contract
 - sync push / pull skeleton
+- IndexedDB local store skeleton
 
 目前仍未完成：
 
-- IndexedDB local store
 - background sync
 - operation queue persistence
 - idempotency persistence
@@ -22,7 +22,7 @@
 
 ## 目前狀態
 
-目前系統仍屬於 online-first，但 server 已具備接收 pending operations 與回傳 pull changes 的基本能力。
+目前系統仍屬於 online-first，但已具備本機資料層骨架與 server sync skeleton。
 
 已具備：
 
@@ -31,10 +31,13 @@
 - delete API 已改為 soft delete
 - sync push / pull route 已建立
 - pull 可回傳 tombstones
+- IndexedDB stores：`items`、`records`、`syncOperations`、`syncMeta`
+- local repository：item / record / syncOperation / syncMeta
+- local write service：先寫本機資料並建立 pending sync operation
+- deviceId 會儲存在 `syncMeta`
 
 未具備：
 
-- client local store
 - background sync loop
 - reconnect retry
 - operation dedup persistence
@@ -156,10 +159,38 @@ pull 時會回傳 tombstones，讓未來 local store 能同步刪除事件，而
 
 ## Local Store 與 Background Sync
 
+目前已導入 local store skeleton：
+
+- IndexedDB 為主要本機資料庫
+- `items`
+- `records`
+- `syncOperations`
+- `syncMeta`
+
+目前 local write flow：
+
+- `createLocalItem`
+- `updateLocalItem`
+- `deleteLocalItem`
+- `createLocalRecord`
+- `updateLocalRecord`
+- `deleteLocalRecord`
+
+這些 function 目前會：
+
+1. 先寫入 IndexedDB
+2. 同時建立 `syncOperation`
+3. 將 entity `syncStatus` 設為 `pending`
+4. 不直接呼叫 sync API
+
 目前尚未導入：
 
-- IndexedDB local store
 - background sync
 - 自動 retry / reconnect flush
 
-所以這一階段的 sync API 仍是 server-side skeleton，不代表整個 offline-first 流程已經完整。
+所以這一階段仍只是 local store skeleton：
+
+- UI 主要仍使用既有 API
+- IndexedDB 尚未全面接入畫面
+- background sync 尚未實作
+- PostgreSQL 仍是雲端主資料庫

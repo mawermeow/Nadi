@@ -36,14 +36,28 @@
 4. server 以 `version` 檢查衝突
 5. client pull 最新變更並回寫本機資料庫
 
-目前不實作：
+目前仍未完成：
 
-- IndexedDB local store
-- operation queue runtime
-- sync API
-- conflict resolution UI
+- IndexedDB 尚未全面接入畫面
+- operation queue runtime 尚未接入同步流程
+- background sync / conflict resolution UI 尚未實作
 
 詳細設計請見 [offline-sync-design.md](/Users/mawer/WebstormProjects/Nadi/docs/offline-sync-design.md)。
+
+## Phase D Status
+
+目前已補上 client local store skeleton：
+
+- 使用 IndexedDB 作為本機資料層
+- 建立 `items`、`records`、`syncOperations`、`syncMeta` store
+- 建立 local repository 與 local write service
+
+目前仍維持：
+
+- UI 主要走既有 API
+- IndexedDB 尚未全面接入畫面
+- background sync 尚未實作
+- PostgreSQL 仍是雲端主資料庫
 
 ## Intentional Omissions In Current Build
 
