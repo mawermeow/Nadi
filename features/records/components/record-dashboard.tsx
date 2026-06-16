@@ -4,14 +4,20 @@ import { useMemo, useState, useTransition } from 'react';
 
 import type { ItemResponse } from '@/features/items/api';
 import type { RecordResponse } from '@/features/records/api';
-import type { SummaryReportResponse } from '@/features/reports/api';
+import type {
+  CorrelationReportResponse,
+  SummaryReportResponse,
+} from '@/features/reports/api';
+import { CorrelationReportSection } from '@/features/reports/components/correlation-report-section';
 import { SummaryReportSection } from '@/features/reports/components/summary-report-section';
 
 type RecordDashboardProps = {
   initialItems: ItemResponse[];
   initialRecords: RecordResponse[];
   initialSummaryReport: SummaryReportResponse;
+  initialCorrelationReport: CorrelationReportResponse;
   maxReportRangeDays: number;
+  defaultCorrelationWindowHours: number;
   userEmail: string;
 };
 
@@ -127,7 +133,9 @@ export function RecordDashboard({
   initialItems,
   initialRecords,
   initialSummaryReport,
+  initialCorrelationReport,
   maxReportRangeDays,
+  defaultCorrelationWindowHours,
   userEmail,
 }: RecordDashboardProps) {
   const initialRecordItemType =
@@ -173,6 +181,10 @@ export function RecordDashboard({
   );
   const archivedItems = useMemo(
     () => items.filter((item) => item.archived),
+    [items],
+  );
+  const symptomItems = useMemo(
+    () => items.filter((item) => item.type === 'symptom'),
     [items],
   );
   const timelineSelectableItems = useMemo(
@@ -416,7 +428,7 @@ export function RecordDashboard({
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
         <section className="rounded-[2rem] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-[0_24px_80px_rgba(31,42,42,0.08)] sm:p-8">
           <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
-            Nadi / Phase 3
+            Nadi / Phase 5
           </p>
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -436,6 +448,17 @@ export function RecordDashboard({
         <SummaryReportSection
           initialReport={initialSummaryReport}
           maxRangeDays={maxReportRangeDays}
+        />
+
+        <CorrelationReportSection
+          initialReport={{
+            ...initialCorrelationReport,
+            windowHours:
+              initialCorrelationReport.windowHours ||
+              defaultCorrelationWindowHours,
+          }}
+          maxRangeDays={maxReportRangeDays}
+          symptomItems={symptomItems}
         />
 
         <section className="grid gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">

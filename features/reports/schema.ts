@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export function createSummaryReportQuerySchema(maxRangeDays: number) {
+function createReportRangeSchema(maxRangeDays: number) {
   return z
     .object({
       from: z
@@ -35,7 +35,29 @@ export function createSummaryReportQuerySchema(maxRangeDays: number) {
     });
 }
 
+export function createSummaryReportQuerySchema(maxRangeDays: number) {
+  return createReportRangeSchema(maxRangeDays);
+}
+
+export function createCorrelationReportQuerySchema(maxRangeDays: number) {
+  return createReportRangeSchema(maxRangeDays).extend({
+    symptomItemId: z.string().uuid('請提供有效的症狀項目'),
+    windowHours: z.coerce
+      .number()
+      .int('請提供整數小時')
+      .min(1, 'windowHours 至少為 1 小時')
+      .max(168, 'windowHours 不可超過 168 小時'),
+  });
+}
+
 export type SummaryReportQueryInput = {
   from: string;
   to: string;
+};
+
+export type CorrelationReportQueryInput = {
+  symptomItemId: string;
+  from: string;
+  to: string;
+  windowHours: number;
 };

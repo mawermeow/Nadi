@@ -24,3 +24,24 @@ export type SummaryReportResponse = {
   metrics: MetricSummaryResponse[];
   symptoms: SymptomSummaryResponse[];
 };
+
+export type CorrelationCandidateResponse = {
+  itemId: string;
+  title: string;
+  unit?: string;
+  valueType: 'number' | 'boolean' | 'scale' | 'text';
+  correlationScore: number;
+  sampleSize: number;
+  description: string;
+};
+
+export type CorrelationReportResponse = {
+  symptomItemId: string;
+  symptomTitle: string;
+  from: string;
+  to: string;
+  windowHours: number;
+  symptomSampleSize: number;
+  minimumSampleSize: number;
+  candidates: CorrelationCandidateResponse[];
+};

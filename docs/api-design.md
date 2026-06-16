@@ -1,6 +1,6 @@
 # API Design
 
-Phase 2 implements the Item API and keeps the same base conventions for later phases.
+Phase 5 implements the Item, Record, Summary Report, and Correlation Report APIs on the same base conventions.
 
 ## Base Rules
 
@@ -18,8 +18,10 @@ Phase 2 implements the Item API and keeps the same base conventions for later ph
 - `GET /v1/records`
 - `POST /v1/records`
 - `DELETE /v1/records/:recordId`
+- `GET /v1/reports/summary`
+- `GET /v1/reports/correlation`
 
-Correlation reports and AI insights are intentionally excluded from the current Phase 4 implementation.
+AI insights remain outside the current MVP scope.
 
 ## Item API
 
@@ -172,6 +174,52 @@ Response:
       "valueType": "scale",
       "occurrenceCount": 4,
       "avgSeverity": 5.5
+    }
+  ]
+}
+```
+
+## Correlation Report API
+
+### `GET /v1/reports/correlation`
+
+Query params:
+
+- `symptomItemId`
+- `from`
+- `to`
+- `windowHours`
+
+Rules:
+
+- `symptomItemId` 必須是目前登入使用者自己的 symptom item
+- `from` / `to` 必填
+- 需為 ISO 8601 格式
+- 查詢範圍不可超過 `NADI_REPORT_MAX_RANGE_DAYS`
+- `windowHours` 需為正整數，且目前限制在 168 小時內
+- 報表只使用目前登入使用者自己的 records
+- 結果只描述「可能相關」的模式，不表示因果關係
+
+Response:
+
+```json
+{
+  "symptomItemId": "uuid",
+  "symptomTitle": "頭痛",
+  "from": "2026-06-01T00:00:00.000Z",
+  "to": "2026-06-15T23:59:59.999Z",
+  "windowHours": 24,
+  "symptomSampleSize": 6,
+  "minimumSampleSize": 5,
+  "candidates": [
+    {
+      "itemId": "uuid",
+      "title": "睡眠時數",
+      "unit": "小時",
+      "valueType": "number",
+      "correlationScore": -0.34,
+      "sampleSize": 6,
+      "description": "在目前資料中，可以觀察到症狀前 24 小時內，這個項目的數值可能偏低；這只代表可能相關，並不代表因果關係。"
     }
   ]
 }
