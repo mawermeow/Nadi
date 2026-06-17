@@ -117,6 +117,14 @@ export async function upsertInStore<T>(storeName: LocalStoreName, value: T) {
   return value;
 }
 
+export async function deleteFromStore(storeName: LocalStoreName, id: string) {
+  const database = await getLocalDatabase();
+  const transaction = database.transaction(storeName, 'readwrite');
+  const store = transaction.objectStore(storeName);
+  await requestToPromise(store.delete(id));
+  await transactionDone(transaction);
+}
+
 export async function updateStoreEntity<
   T extends LocalEntityBase & Record<string, unknown>,
 >(

@@ -1,4 +1,5 @@
 import {
+  deleteFromStore,
   getAllFromStore,
   getByIdFromStore,
   listBySyncStatus,
@@ -13,6 +14,9 @@ export const syncOperationRepository = {
   },
   getById(id: string) {
     return getByIdFromStore<LocalSyncOperation>('syncOperations', id);
+  },
+  delete(id: string) {
+    return deleteFromStore('syncOperations', id);
   },
   upsert(operation: LocalSyncOperation) {
     return upsertInStore('syncOperations', operation);

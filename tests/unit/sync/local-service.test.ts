@@ -22,6 +22,8 @@ vi.mock('@/features/sync/device', () => ({
 
 vi.mock('@/features/sync/local-operation-repository', () => ({
   syncOperationRepository: {
+    delete: vi.fn(),
+    getAll: vi.fn(),
     upsert: vi.fn(),
   },
 }));
@@ -33,6 +35,7 @@ import {
   createLocalItem,
   createLocalRecord,
   deleteLocalItem,
+  deleteLocalRecord,
   updateLocalRecord,
 } from '@/features/sync/local-service';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
@@ -41,6 +44,7 @@ describe('local service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getOrCreateDeviceId).mockResolvedValue('device-local');
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([]);
   });
 
   it('creates a local item and pending sync operation', async () => {
@@ -200,6 +204,180 @@ describe('local service', () => {
       expect.objectContaining({
         baseVersion: 4,
         operationType: 'delete',
+      }),
+    );
+  });
+
+  it('removes related record create/update operations when unsynced record is deleted', async () => {
+    vi.mocked(recordLocalRepository.getById).mockResolvedValue({
+      id: 'record-1',
+      itemId: 'item-1',
+      valueNumber: 6.5,
+      valueText: null,
+      valueBoolean: null,
+      recordedAt: '2026-06-16T08:00:00.000Z',
+      note: '起床後',
+      syncStatus: 'failed',
+      createdAt: '2026-06-16T08:00:00.000Z',
+      updatedAt: '2026-06-16T09:00:00.000Z',
+      deletedAt: null,
+      version: 2,
+      lastSyncedAt: null,
+      deviceId: 'device-local',
+    });
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      {
+        id: 'op-create',
+        operationId: 'op-create',
+        entityType: 'record',
+        operationType: 'create',
+        entityId: 'record-1',
+        baseVersion: null,
+        payload: {},
+        status: 'failed',
+        syncStatus: 'failed',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T08:30:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 1,
+        lastError: 'PAYLOAD_INVALID',
+      },
+      {
+        id: 'op-update',
+        operationId: 'op-update',
+        entityType: 'record',
+        operationType: 'update',
+        entityId: 'record-1',
+        baseVersion: 1,
+        payload: {},
+        status: 'failed',
+        syncStatus: 'failed',
+        createdAt: '2026-06-16T08:31:00.000Z',
+        updatedAt: '2026-06-16T09:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 1,
+        lastError: 'ENTITY_NOT_FOUND',
+      },
+    ]);
+    vi.mocked(recordLocalRepository.softDelete).mockResolvedValue({
+      id: 'record-1',
+      itemId: 'item-1',
+      valueNumber: 6.5,
+      valueText: null,
+      valueBoolean: null,
+      recordedAt: '2026-06-16T08:00:00.000Z',
+      note: '起床後',
+      syncStatus: 'pending',
+      createdAt: '2026-06-16T08:00:00.000Z',
+      updatedAt: '2026-06-16T10:00:00.000Z',
+      deletedAt: '2026-06-16T10:00:00.000Z',
+      version: 3,
+      lastSyncedAt: null,
+      deviceId: 'device-local',
+    });
+
+    await deleteLocalRecord('record-1');
+
+    expect(syncOperationRepository.delete).toHaveBeenCalledWith('op-create');
+    expect(syncOperationRepository.delete).toHaveBeenCalledWith('op-update');
+    expect(syncOperationRepository.upsert).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'record',
+        operationType: 'delete',
+      }),
+    );
+  });
+
+  it('collapses pending record updates into one delete operation', async () => {
+    vi.mocked(recordLocalRepository.getById).mockResolvedValue({
+      id: 'record-1',
+      itemId: 'item-1',
+      valueNumber: 6.5,
+      valueText: null,
+      valueBoolean: null,
+      recordedAt: '2026-06-16T08:00:00.000Z',
+      note: '起床後',
+      syncStatus: 'pending',
+      createdAt: '2026-06-16T08:00:00.000Z',
+      updatedAt: '2026-06-16T09:00:00.000Z',
+      deletedAt: null,
+      version: 4,
+      lastSyncedAt: '2026-06-16T08:00:00.000Z',
+      deviceId: 'device-local',
+    });
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      {
+        id: 'op-update-1',
+        operationId: 'op-update-1',
+        entityType: 'record',
+        operationType: 'update',
+        entityId: 'record-1',
+        baseVersion: 2,
+        payload: {},
+        status: 'pending',
+        syncStatus: 'pending',
+        createdAt: '2026-06-16T08:30:00.000Z',
+        updatedAt: '2026-06-16T08:30:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 0,
+        lastError: null,
+      },
+      {
+        id: 'op-update-2',
+        operationId: 'op-update-2',
+        entityType: 'record',
+        operationType: 'update',
+        entityId: 'record-1',
+        baseVersion: 3,
+        payload: {},
+        status: 'pending',
+        syncStatus: 'pending',
+        createdAt: '2026-06-16T08:40:00.000Z',
+        updatedAt: '2026-06-16T08:40:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 0,
+        lastError: null,
+      },
+    ]);
+    vi.mocked(recordLocalRepository.softDelete).mockResolvedValue({
+      id: 'record-1',
+      itemId: 'item-1',
+      valueNumber: 6.5,
+      valueText: null,
+      valueBoolean: null,
+      recordedAt: '2026-06-16T08:00:00.000Z',
+      note: '起床後',
+      syncStatus: 'pending',
+      createdAt: '2026-06-16T08:00:00.000Z',
+      updatedAt: '2026-06-16T10:00:00.000Z',
+      deletedAt: '2026-06-16T10:00:00.000Z',
+      version: 5,
+      lastSyncedAt: '2026-06-16T08:00:00.000Z',
+      deviceId: 'device-local',
+    });
+    vi.mocked(syncOperationRepository.upsert).mockImplementation(async (value) => value);
+
+    await deleteLocalRecord('record-1');
+
+    expect(syncOperationRepository.delete).toHaveBeenCalledWith('op-update-1');
+    expect(syncOperationRepository.delete).toHaveBeenCalledWith('op-update-2');
+    expect(syncOperationRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'record',
+        operationType: 'delete',
+        baseVersion: 2,
       }),
     );
   });

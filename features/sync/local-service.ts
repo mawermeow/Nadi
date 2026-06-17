@@ -156,6 +156,27 @@ async function createPendingOperation(input: {
   });
 }
 
+async function removeRelatedPendingOperations(input: {
+  entityType: 'item' | 'record';
+  entityId: string;
+}) {
+  const operations = await syncOperationRepository.getAll();
+  const relatedOperations = operations
+    .filter(
+      (operation) =>
+        operation.entityType === input.entityType &&
+        operation.entityId === input.entityId &&
+        operation.status !== 'synced',
+    )
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+  for (const operation of relatedOperations) {
+    await syncOperationRepository.delete(operation.id);
+  }
+
+  return relatedOperations;
+}
+
 export async function createLocalItem(input: CreateLocalItemInput) {
   const deviceId = await getOrCreateDeviceId();
   const now = new Date().toISOString();
@@ -392,6 +413,16 @@ export async function deleteLocalRecord(id: string) {
 
   const deviceId = await getOrCreateDeviceId();
   const now = new Date().toISOString();
+  const relatedOperations = await removeRelatedPendingOperations({
+    entityType: 'record',
+    entityId: id,
+  });
+  const hasUnsyncedCreate = relatedOperations.some(
+    (operation) => operation.operationType === 'create',
+  );
+  const deleteBaseVersion =
+    relatedOperations.find((operation) => operation.baseVersion !== null)
+      ?.baseVersion ?? existingRecord.version;
   const nextVersion = existingRecord.version + 1;
 
   const deletedRecord = await recordLocalRepository.softDelete(id, {
@@ -399,12 +430,16 @@ export async function deleteLocalRecord(id: string) {
     version: nextVersion,
   });
 
+  if (hasUnsyncedCreate) {
+    return deletedRecord;
+  }
+
   await createPendingOperation({
     deviceId,
     entityType: 'record',
     operationType: 'delete',
     entityId: id,
-    baseVersion: existingRecord.version,
+    baseVersion: deleteBaseVersion,
     payload: {},
     timestamp: now,
   });
