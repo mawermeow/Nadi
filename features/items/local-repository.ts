@@ -1,4 +1,5 @@
 import {
+  deleteFromStore,
   getAllFromStore,
   getByIdFromStore,
   listBySyncStatus,
@@ -19,6 +20,9 @@ export const itemLocalRepository = {
   },
   getById(id: string) {
     return getByIdFromStore<LocalItem>('items', id);
+  },
+  delete(id: string) {
+    return deleteFromStore('items', id);
   },
   upsert(item: LocalItem) {
     return upsertInStore('items', item);

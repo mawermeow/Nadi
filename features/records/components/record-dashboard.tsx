@@ -24,10 +24,12 @@ import {
   ArrowRightIcon,
   HeartPulseIcon,
   LoaderIcon,
+  PencilIcon,
   PlusIcon,
   RefreshIcon,
   SaveIcon,
   SearchIcon,
+  TrashIcon,
   Undo2Icon,
   XIcon,
   type AppTabIconName,
@@ -50,6 +52,7 @@ import { SummaryReportSection } from '@/features/reports/components/summary-repo
 import {
   createLocalItem,
   createLocalRecord,
+  deleteLocalItem,
   deleteLocalRecord,
   updateLocalItem,
   updateLocalRecord,
@@ -313,6 +316,11 @@ export function RecordDashboard({
   const [syncState, setSyncState] = useState<SyncState>(getSyncState());
   const [isHydratingLocal, setIsHydratingLocal] = useState(true);
   const [syncIssues, setSyncIssues] = useState<SyncOperationIssue[]>([]);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemTitle, setEditingItemTitle] = useState('');
+  const [itemRecordHistoryCounts, setItemRecordHistoryCounts] = useState<
+    Record<string, number>
+  >({});
 
   const activeItems = useMemo(
     () => items.filter((item) => !item.archived),
@@ -422,6 +430,18 @@ export function RecordDashboard({
     setSyncIssues(issues);
   }, []);
 
+  const loadItemRecordHistoryCounts = useCallback(async () => {
+    const localRecords = await recordLocalRepository.getAll({ includeDeleted: true });
+    const nextCounts = localRecords.reduce<Record<string, number>>(
+      (counts, record) => {
+        counts[record.itemId] = (counts[record.itemId] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    setItemRecordHistoryCounts(nextCounts);
+  }, []);
+
   function navigateToTab(tabId: string, options?: { forceScroll?: boolean }) {
     const nextTab = appTabs.find((tab) => tab.id === tabId)?.id;
 
@@ -447,9 +467,90 @@ export function RecordDashboard({
             preserveCurrentFilter: true,
           }),
           loadSyncIssues(),
+          loadItemRecordHistoryCounts(),
         ]);
       } catch {
         // sync state already captures recovery failures.
+      }
+    });
+  }
+
+  function startRenameItem(item: ItemResponse) {
+    setEditingItemId(item.id);
+    setEditingItemTitle(item.title);
+    setItemError(null);
+    setItemNotice(null);
+  }
+
+  function cancelRenameItem() {
+    setEditingItemId(null);
+    setEditingItemTitle('');
+  }
+
+  async function saveRenamedItem(item: ItemResponse) {
+    const nextTitle = editingItemTitle.trim();
+
+    if (nextTitle.length === 0) {
+      setItemError('請輸入項目名稱');
+      return;
+    }
+
+    if (nextTitle === item.title) {
+      cancelRenameItem();
+      return;
+    }
+
+    setItemError(null);
+    setItemNotice(null);
+
+    startItemMutationTransition(async () => {
+      try {
+        const updatedItem = await updateLocalItem({
+          id: item.id,
+          title: nextTitle,
+        });
+        const data = mapLocalItemToItemResponse(updatedItem);
+
+        setItems((currentItems) =>
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id ? data : currentItem,
+          ),
+        );
+        cancelRenameItem();
+        setItemNotice(`已將項目改名為「${nextTitle}」。`);
+        await Promise.all([loadLocalData(), loadItemRecordHistoryCounts()]);
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setItemError(error instanceof Error ? error.message : '更新項目失敗');
+      }
+    });
+  }
+
+  async function deleteItem(item: ItemResponse) {
+    setItemError(null);
+    setItemNotice(null);
+
+    startItemMutationTransition(async () => {
+      try {
+        await deleteLocalItem(item.id);
+        setItems((currentItems) =>
+          currentItems.filter((currentItem) => currentItem.id !== item.id),
+        );
+
+        if (recordFormState.itemId === item.id) {
+          const nextItem = activeItems.find((currentItem) => currentItem.id !== item.id);
+          setRecordFormState((currentState) => ({
+            ...currentState,
+            itemId: nextItem?.id ?? '',
+          }));
+        }
+
+        cancelRenameItem();
+        setItemNotice(`已刪除「${item.title}」。`);
+        await Promise.all([loadLocalData(), loadItemRecordHistoryCounts()]);
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setItemError(error instanceof Error ? error.message : '刪除項目失敗');
       }
     });
   }
@@ -554,6 +655,7 @@ export function RecordDashboard({
       }
 
       await loadLocalData();
+      await loadItemRecordHistoryCounts();
 
       if (!isMounted) {
         return;
@@ -574,6 +676,7 @@ export function RecordDashboard({
     const unsubscribe = subscribeSyncState((nextState) => {
       setSyncState(nextState);
       void loadSyncIssues();
+      void loadItemRecordHistoryCounts();
 
       if (nextState.lastSyncAt) {
         void loadLocalData({
@@ -587,7 +690,13 @@ export function RecordDashboard({
       unsubscribe();
       stopForegroundSync();
     };
-  }, [initialItems, initialRecords, loadLocalData, loadSyncIssues]);
+  }, [
+    initialItems,
+    initialRecords,
+    loadItemRecordHistoryCounts,
+    loadLocalData,
+    loadSyncIssues,
+  ]);
 
   async function handleCreateItem(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -632,7 +741,7 @@ export function RecordDashboard({
           itemId: data.id,
         }));
         setItemNotice(`已建立「${data.title}」，現在可以直接用它來新增紀錄。`);
-        await loadLocalData();
+        await Promise.all([loadLocalData(), loadItemRecordHistoryCounts()]);
         void runSync().catch(() => undefined);
       } catch (error) {
         setItemError(error instanceof Error ? error.message : '建立項目失敗');
@@ -751,7 +860,7 @@ export function RecordDashboard({
             ? `已封存「${item.title}」，之後新增紀錄時不會再出現。`
             : `已恢復「${item.title}」，現在可以再次使用。`,
         );
-        await loadLocalData();
+        await Promise.all([loadLocalData(), loadItemRecordHistoryCounts()]);
         void runSync().catch(() => undefined);
       } catch (error) {
         setItemError(error instanceof Error ? error.message : '更新項目失敗');
@@ -1308,21 +1417,54 @@ export function RecordDashboard({
                 className="rounded-2xl border border-[var(--line)] bg-white p-4"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold">{item.title}</h3>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-medium ${getItemTypeBadgeClass(item.type)}`}
-                      >
-                        {item.type === 'metric' ? '指標' : '症狀'}
-                      </span>
-                      {getSyncStatusPresentation(item.syncStatus) ? (
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
-                        >
-                          {getSyncStatusPresentation(item.syncStatus)?.label}
-                        </span>
-                      ) : null}
+                      {editingItemId === item.id ? (
+                        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+                          <TextInput
+                            value={editingItemTitle}
+                            onChange={(event) => setEditingItemTitle(event.target.value)}
+                            placeholder="請輸入項目名稱"
+                            className="sm:max-w-xs"
+                          />
+                          <div className="flex gap-2">
+                            <IconButton
+                              label={isMutatingItem ? '儲存中…' : '儲存名稱'}
+                              icon={
+                                isMutatingItem ? (
+                                  <LoaderIcon size={18} />
+                                ) : (
+                                  <SaveIcon size={18} />
+                                )
+                              }
+                              disabled={isMutatingItem}
+                              onClick={() => void saveRenamedItem(item)}
+                            />
+                            <IconButton
+                              label="取消改名"
+                              icon={<XIcon size={18} />}
+                              disabled={isMutatingItem}
+                              onClick={cancelRenameItem}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h3 className="text-lg font-semibold">{item.title}</h3>
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getItemTypeBadgeClass(item.type)}`}
+                          >
+                            {item.type === 'metric' ? '指標' : '症狀'}
+                          </span>
+                          {getSyncStatusPresentation(item.syncStatus) ? (
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
+                            >
+                              {getSyncStatusPresentation(item.syncStatus)?.label}
+                            </span>
+                          ) : null}
+                        </>
+                      )}
                     </div>
                     <p className="mt-2 text-sm text-[var(--muted)]">
                       格式：{getValueTypeLabel(item.valueType)}
@@ -1333,20 +1475,49 @@ export function RecordDashboard({
                         ? ` / 範圍：${item.scaleMin} - ${item.scaleMax}`
                         : ''}
                     </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0
+                        ? '尚無歷史紀錄，可直接刪除。'
+                        : `已有 ${itemRecordHistoryCounts[item.id] ?? 0} 筆歷史紀錄，建議使用封存保留脈絡。`}
+                    </p>
                   </div>
-                  <IconButton
-                    label={isMutatingItem ? '處理中…' : '封存'}
-                    icon={
-                      isMutatingItem ? (
-                        <LoaderIcon size={18} />
-                      ) : (
-                        <EyeOffIcon size={18} />
-                      )
-                    }
-                    disabled={isMutatingItem}
-                    onClick={() => toggleArchive(item, true)}
-                    className="sm:self-start"
-                  />
+                  {editingItemId === item.id ? null : (
+                    <div className="flex shrink-0 gap-2 sm:self-start">
+                      <IconButton
+                        label="修改名稱"
+                        icon={<PencilIcon size={18} />}
+                        disabled={isMutatingItem}
+                        onClick={() => startRenameItem(item)}
+                      />
+                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
+                        <IconButton
+                          label={isMutatingItem ? '刪除中…' : '刪除'}
+                          icon={
+                            isMutatingItem ? (
+                              <LoaderIcon size={18} />
+                            ) : (
+                              <TrashIcon size={18} />
+                            )
+                          }
+                          disabled={isMutatingItem}
+                          onClick={() => void deleteItem(item)}
+                          className="text-rose-600"
+                        />
+                      ) : null}
+                      <IconButton
+                        label={isMutatingItem ? '處理中…' : '封存'}
+                        icon={
+                          isMutatingItem ? (
+                            <LoaderIcon size={18} />
+                          ) : (
+                            <EyeOffIcon size={18} />
+                          )
+                        }
+                        disabled={isMutatingItem}
+                        onClick={() => void toggleArchive(item, true)}
+                      />
+                    </div>
+                  )}
                 </div>
               </article>
             ))
@@ -1372,10 +1543,46 @@ export function RecordDashboard({
                 className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold">{item.title}</h3>
+                  <div className="min-w-0 flex-1">
+                    {editingItemId === item.id ? (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <TextInput
+                          value={editingItemTitle}
+                          onChange={(event) => setEditingItemTitle(event.target.value)}
+                          placeholder="請輸入項目名稱"
+                          className="sm:max-w-xs"
+                        />
+                        <div className="flex gap-2">
+                          <IconButton
+                            label={isMutatingItem ? '儲存中…' : '儲存名稱'}
+                            icon={
+                              isMutatingItem ? (
+                                <LoaderIcon size={18} />
+                              ) : (
+                                <SaveIcon size={18} />
+                              )
+                            }
+                            disabled={isMutatingItem}
+                            onClick={() => void saveRenamedItem(item)}
+                          />
+                          <IconButton
+                            label="取消改名"
+                            icon={<XIcon size={18} />}
+                            disabled={isMutatingItem}
+                            onClick={cancelRenameItem}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <h3 className="text-base font-semibold">{item.title}</h3>
+                    )}
                     <p className="mt-2 text-sm text-[var(--muted)]">
                       {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType)}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0
+                        ? '尚無歷史紀錄，可恢復或直接刪除。'
+                        : `已有 ${itemRecordHistoryCounts[item.id] ?? 0} 筆歷史紀錄。`}
                     </p>
                     {getSyncStatusPresentation(item.syncStatus) ? (
                       <p className="mt-2">
@@ -1387,19 +1594,43 @@ export function RecordDashboard({
                       </p>
                     ) : null}
                   </div>
-                  <IconButton
-                    label={isMutatingItem ? '處理中…' : '恢復'}
-                    icon={
-                      isMutatingItem ? (
-                        <LoaderIcon size={18} />
-                      ) : (
-                        <EyeIcon size={18} />
-                      )
-                    }
-                    disabled={isMutatingItem}
-                    onClick={() => toggleArchive(item, false)}
-                    className="sm:self-start"
-                  />
+                  {editingItemId === item.id ? null : (
+                    <div className="flex shrink-0 gap-2 sm:self-start">
+                      <IconButton
+                        label="修改名稱"
+                        icon={<PencilIcon size={18} />}
+                        disabled={isMutatingItem}
+                        onClick={() => startRenameItem(item)}
+                      />
+                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
+                        <IconButton
+                          label={isMutatingItem ? '刪除中…' : '刪除'}
+                          icon={
+                            isMutatingItem ? (
+                              <LoaderIcon size={18} />
+                            ) : (
+                              <TrashIcon size={18} />
+                            )
+                          }
+                          disabled={isMutatingItem}
+                          onClick={() => void deleteItem(item)}
+                          className="text-rose-600"
+                        />
+                      ) : null}
+                      <IconButton
+                        label={isMutatingItem ? '處理中…' : '恢復'}
+                        icon={
+                          isMutatingItem ? (
+                            <LoaderIcon size={18} />
+                          ) : (
+                            <EyeIcon size={18} />
+                          )
+                        }
+                        disabled={isMutatingItem}
+                        onClick={() => void toggleArchive(item, false)}
+                      />
+                    </div>
+                  )}
                 </div>
               </article>
             ))

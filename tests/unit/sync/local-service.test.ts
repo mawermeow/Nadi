@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/features/items/local-repository', () => ({
   itemLocalRepository: {
+    delete: vi.fn(),
     getById: vi.fn(),
     upsert: vi.fn(),
     softDelete: vi.fn(),
@@ -10,6 +11,7 @@ vi.mock('@/features/items/local-repository', () => ({
 
 vi.mock('@/features/records/local-repository', () => ({
   recordLocalRepository: {
+    getAll: vi.fn(),
     getById: vi.fn(),
     upsert: vi.fn(),
     softDelete: vi.fn(),
@@ -178,7 +180,24 @@ describe('local service', () => {
       lastSyncedAt: null,
       deviceId: 'device-local',
     });
-    vi.mocked(itemLocalRepository.softDelete).mockResolvedValue({
+    vi.mocked(recordLocalRepository.getAll).mockResolvedValue([]);
+    vi.mocked(itemLocalRepository.delete).mockResolvedValue(undefined);
+    vi.mocked(syncOperationRepository.upsert).mockImplementation(async (value) => value);
+
+    const item = await deleteLocalItem('item-1');
+
+    expect(itemLocalRepository.delete).toHaveBeenCalledWith('item-1');
+    expect(item?.id).toBe('item-1');
+    expect(syncOperationRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseVersion: 4,
+        operationType: 'delete',
+      }),
+    );
+  });
+
+  it('removes related item create/update operations when unsynced item is deleted', async () => {
+    vi.mocked(itemLocalRepository.getById).mockResolvedValue({
       id: 'item-1',
       title: '睡眠',
       type: 'metric',
@@ -187,25 +206,111 @@ describe('local service', () => {
       scaleMin: null,
       scaleMax: null,
       archived: false,
-      syncStatus: 'pending',
+      syncStatus: 'failed',
       createdAt: '2026-06-16T00:00:00.000Z',
       updatedAt: '2026-06-16T09:00:00.000Z',
-      deletedAt: '2026-06-16T09:00:00.000Z',
-      version: 5,
+      deletedAt: null,
+      version: 2,
       lastSyncedAt: null,
       deviceId: 'device-local',
     });
-    vi.mocked(syncOperationRepository.upsert).mockImplementation(async (value) => value);
+    vi.mocked(recordLocalRepository.getAll).mockResolvedValue([]);
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      {
+        id: 'op-create',
+        operationId: 'op-create',
+        entityType: 'item',
+        operationType: 'create',
+        entityId: 'item-1',
+        baseVersion: null,
+        payload: {},
+        status: 'failed',
+        syncStatus: 'failed',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T08:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 1,
+        lastError: 'PAYLOAD_INVALID',
+      },
+      {
+        id: 'op-update',
+        operationId: 'op-update',
+        entityType: 'item',
+        operationType: 'update',
+        entityId: 'item-1',
+        baseVersion: 1,
+        payload: {},
+        status: 'failed',
+        syncStatus: 'failed',
+        createdAt: '2026-06-16T08:10:00.000Z',
+        updatedAt: '2026-06-16T08:10:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+        retryCount: 1,
+        lastError: 'ENTITY_NOT_FOUND',
+      },
+    ]);
+    vi.mocked(itemLocalRepository.delete).mockResolvedValue(undefined);
 
-    const item = await deleteLocalItem('item-1');
+    await deleteLocalItem('item-1');
 
-    expect(item?.deletedAt).not.toBeNull();
-    expect(syncOperationRepository.upsert).toHaveBeenCalledWith(
+    expect(syncOperationRepository.delete).toHaveBeenCalledWith('op-create');
+    expect(syncOperationRepository.delete).toHaveBeenCalledWith('op-update');
+    expect(itemLocalRepository.delete).toHaveBeenCalledWith('item-1');
+    expect(syncOperationRepository.upsert).not.toHaveBeenCalledWith(
       expect.objectContaining({
-        baseVersion: 4,
+        entityType: 'item',
         operationType: 'delete',
       }),
     );
+  });
+
+  it('prevents deleting an item that already has record history', async () => {
+    vi.mocked(itemLocalRepository.getById).mockResolvedValue({
+      id: 'item-1',
+      title: '睡眠',
+      type: 'metric',
+      unit: '小時',
+      valueType: 'number',
+      scaleMin: null,
+      scaleMax: null,
+      archived: false,
+      syncStatus: 'synced',
+      createdAt: '2026-06-16T00:00:00.000Z',
+      updatedAt: '2026-06-16T09:00:00.000Z',
+      deletedAt: null,
+      version: 2,
+      lastSyncedAt: '2026-06-16T09:00:00.000Z',
+      deviceId: 'device-local',
+    });
+    vi.mocked(recordLocalRepository.getAll).mockResolvedValue([
+      {
+        id: 'record-1',
+        itemId: 'item-1',
+        valueNumber: 6.5,
+        valueText: null,
+        valueBoolean: null,
+        recordedAt: '2026-06-16T08:00:00.000Z',
+        note: null,
+        syncStatus: 'synced',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T08:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: '2026-06-16T08:00:00.000Z',
+        deviceId: 'device-local',
+      },
+    ]);
+
+    await expect(deleteLocalItem('item-1')).rejects.toThrow(
+      '已有歷史紀錄的項目只能封存，不能直接刪除',
+    );
+    expect(itemLocalRepository.delete).not.toHaveBeenCalled();
   });
 
   it('removes related record create/update operations when unsynced record is deleted', async () => {

@@ -177,6 +177,11 @@ async function removeRelatedPendingOperations(input: {
   return relatedOperations;
 }
 
+async function getItemRecordHistoryCount(itemId: string) {
+  const records = await recordLocalRepository.getAll({ includeDeleted: true });
+  return records.filter((record) => record.itemId === itemId).length;
+}
+
 export async function createLocalItem(input: CreateLocalItemInput) {
   const deviceId = await getOrCreateDeviceId();
   const now = new Date().toISOString();
@@ -281,26 +286,43 @@ export async function deleteLocalItem(id: string) {
     throw new Error('找不到這個本機項目');
   }
 
+  const recordHistoryCount = await getItemRecordHistoryCount(id);
+
+  if (recordHistoryCount > 0) {
+    throw new Error('已有歷史紀錄的項目只能封存，不能直接刪除');
+  }
+
+  const relatedOperations = await removeRelatedPendingOperations({
+    entityType: 'item',
+    entityId: id,
+  });
+  await itemLocalRepository.delete(id);
+
+  const hasUnsyncedCreate = relatedOperations.some(
+    (operation) => operation.operationType === 'create',
+  );
+
+  if (hasUnsyncedCreate) {
+    return existingItem;
+  }
+
   const deviceId = await getOrCreateDeviceId();
   const now = new Date().toISOString();
-  const nextVersion = existingItem.version + 1;
-
-  const deletedItem = await itemLocalRepository.softDelete(id, {
-    deletedAt: now,
-    version: nextVersion,
-  });
+  const deleteBaseVersion =
+    relatedOperations.find((operation) => operation.baseVersion !== null)
+      ?.baseVersion ?? existingItem.version;
 
   await createPendingOperation({
     deviceId,
     entityType: 'item',
     operationType: 'delete',
     entityId: id,
-    baseVersion: existingItem.version,
+    baseVersion: deleteBaseVersion,
     payload: {},
     timestamp: now,
   });
 
-  return deletedItem;
+  return existingItem;
 }
 
 export async function createLocalRecord(input: CreateLocalRecordInput) {
