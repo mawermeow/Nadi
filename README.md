@@ -4,7 +4,7 @@
 
 # Nadi
 
-> Observe yourself, not optimize yourself.
+> 記錄自己的生活訊號
 
 <p align="center">
   <a href="#readme-zh">中文版</a>
@@ -154,7 +154,7 @@ pnpm db:studio
 
 # Nadi 中文版
 
-> Observe yourself, not optimize yourself.
+> 記錄自己的生活訊號
 
 Nadi 是一個個人 life-signal tracking system。使用者可以自訂追蹤項目、記錄日常訊號，並在指定時間區間內查看 summary reports 與 correlation reports。
 
