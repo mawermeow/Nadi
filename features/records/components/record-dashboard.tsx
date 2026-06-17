@@ -74,9 +74,11 @@ import { getActiveLocalDataUserId } from '@/features/sync/local-user-scope';
 import {
   hydrateSyncTelemetryState,
   retryFailedOperations,
+  retrySyncOperation,
   startForegroundSync,
   runSync,
 } from '@/features/sync/client-service';
+import { syncOperationRepository } from '@/features/sync/local-operation-repository';
 import { getSyncState, subscribeSyncState, type SyncState } from '@/features/sync/state';
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
@@ -309,6 +311,7 @@ export function RecordDashboard({
   const [isMutatingItem, startItemMutationTransition] = useTransition();
   const [isDeletingRecord, startDeleteTransition] = useTransition();
   const [isRetryingSync, startRetrySyncTransition] = useTransition();
+  const [activeSyncIssueId, setActiveSyncIssueId] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<SyncState>(getSyncState());
   const [isHydratingLocal, setIsHydratingLocal] = useState(true);
   const [syncIssues, setSyncIssues] = useState<SyncOperationIssue[]>([]);
@@ -358,14 +361,18 @@ export function RecordDashboard({
       lastSyncAt: formatSyncTimestamp(syncState.lastSyncAt),
     };
   }, [syncState.lastSyncAt, syncState.status]);
-  const effectiveSessionUser = authSession?.user
-    ? {
-        id: authSession.user.id,
-        email: authSession.user.email,
-        name: authSession.user.name,
-        emailVerified: authSession.user.emailVerified,
-      }
-    : sessionUser;
+  const effectiveSessionUser = useMemo(
+    () =>
+      authSession?.user
+        ? {
+            id: authSession.user.id,
+            email: authSession.user.email,
+            name: authSession.user.name,
+            emailVerified: authSession.user.emailVerified,
+          }
+        : sessionUser,
+    [authSession, sessionUser],
+  );
   const sidebarDisplayName = effectiveSessionUser
     ? effectiveSessionUser.name?.trim() || effectiveSessionUser.email.split('@')[0] || '你'
     : null;
@@ -480,6 +487,60 @@ export function RecordDashboard({
         ]);
       } catch {
         // sync state already captures recovery failures.
+      }
+    });
+  }
+
+  function handleRetrySyncIssue(issue: SyncOperationIssue) {
+    setActiveSyncIssueId(issue.operationId);
+    startRetrySyncTransition(async () => {
+      try {
+        await retrySyncOperation(issue.operationId);
+        await runSync();
+        await Promise.all([
+          loadLocalData({
+            preserveCurrentFilter: true,
+          }),
+          loadSyncIssues(),
+          loadItemRecordHistoryCounts(),
+        ]);
+      } catch {
+        // sync state already captures recovery failures.
+      } finally {
+        setActiveSyncIssueId((current) =>
+          current === issue.operationId ? null : current,
+        );
+      }
+    });
+  }
+
+  function handleDismissSyncIssue(issue: SyncOperationIssue) {
+    setActiveSyncIssueId(issue.operationId);
+    startRetrySyncTransition(async () => {
+      try {
+        if (issue.operationType === 'create') {
+          if (issue.entityType === 'item') {
+            await deleteLocalItem(issue.entityId);
+          } else {
+            await deleteLocalRecord(issue.entityId);
+          }
+        } else {
+          await syncOperationRepository.delete(issue.operationId);
+        }
+
+        await Promise.all([
+          loadLocalData({
+            preserveCurrentFilter: true,
+          }),
+          loadSyncIssues(),
+          loadItemRecordHistoryCounts(),
+        ]);
+      } catch {
+        // keep the issue visible if local cleanup fails.
+      } finally {
+        setActiveSyncIssueId((current) =>
+          current === issue.operationId ? null : current,
+        );
       }
     });
   }
@@ -1950,6 +2011,34 @@ export function RecordDashboard({
                       <p className="mt-1 text-xs text-[var(--muted)]">
                         最近更新：{formatSyncTimestamp(issue.updatedAt)}
                       </p>
+                      {issue.status === 'failed' ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <ActionButton
+                            type="button"
+                            variant="secondary"
+                            icon={<RefreshIcon size={18} />}
+                            label={
+                              activeSyncIssueId === issue.operationId
+                                ? '處理中…'
+                                : '重試這筆'
+                            }
+                            onClick={() => handleRetrySyncIssue(issue)}
+                            disabled={isRetryingSync}
+                          />
+                          <ActionButton
+                            type="button"
+                            variant="secondary"
+                            icon={<XIcon size={18} />}
+                            label={
+                              issue.operationType === 'create'
+                                ? '刪除本機資料'
+                                : '清除此錯誤'
+                            }
+                            onClick={() => handleDismissSyncIssue(issue)}
+                            disabled={isRetryingSync}
+                          />
+                        </div>
+                      ) : null}
                     </article>
                   ))
                 )}

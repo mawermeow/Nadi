@@ -297,8 +297,20 @@ async function applyTombstone(tombstone: SyncTombstone, serverTime: string) {
 
 async function handleRejectedOperations(
   rejected: SyncRejectedOperation[],
+  serverTime: string,
 ) {
   for (const operation of rejected) {
+    const isAlreadyDeletedRecovery =
+      operation.operationType === 'delete' &&
+      (operation.reason === 'ENTITY_NOT_FOUND' || operation.reason === 'ENTITY_DELETED');
+
+    if (isAlreadyDeletedRecovery) {
+      await syncOperationRepository.markSynced(operation.operationId, {
+        lastSyncedAt: serverTime,
+      });
+      continue;
+    }
+
     await syncOperationRepository.markFailed(operation.operationId, {
       lastError: `${operation.reason}: ${operation.message}`,
     });
@@ -493,7 +505,7 @@ export async function pushPendingOperations() {
     );
   }
 
-  await handleRejectedOperations(response.rejected);
+  await handleRejectedOperations(response.rejected, response.serverTime);
   await handleConflicts(response.conflicts, response.serverTime);
   await setLastSyncedAt(response.serverTime);
   await refreshSyncCounts();
@@ -626,6 +638,17 @@ export async function retryFailedOperations() {
     await syncOperationRepository.requeue(operation.id);
   }
 
+  return pushPendingOperations();
+}
+
+export async function retrySyncOperation(operationId: string) {
+  const operation = await syncOperationRepository.getById(operationId);
+
+  if (!operation || operation.status !== 'failed') {
+    return null;
+  }
+
+  await syncOperationRepository.requeue(operation.id);
   return pushPendingOperations();
 }
 

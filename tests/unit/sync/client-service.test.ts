@@ -73,6 +73,7 @@ vi.mock('@/features/sync/network', () => ({
 vi.mock('@/features/sync/local-operation-repository', () => ({
   syncOperationRepository: {
     getAll: vi.fn(),
+    getById: vi.fn(),
     listFailed: vi.fn(),
     markConflict: vi.fn(),
     markFailed: vi.fn(),
@@ -93,6 +94,7 @@ import {
   pullRemoteChanges,
   pushPendingOperations,
   retryFailedOperations,
+  retrySyncOperation,
   runSync,
 } from '@/features/sync/client-service';
 import { getOrCreateDeviceId } from '@/features/sync/device';
@@ -502,6 +504,60 @@ describe('client sync service', () => {
     );
   });
 
+  it('treats delete not found rejection as already resolved', async () => {
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      {
+        ...pendingOperation,
+        operationType: 'delete',
+      },
+    ]);
+    vi.mocked(pushSyncOperations).mockResolvedValue({
+      accepted: [],
+      rejected: [
+        {
+          operationId: 'op-1',
+          entityType: 'record',
+          operationType: 'delete',
+          entityId: pendingOperation.entityId,
+          reason: 'ENTITY_NOT_FOUND',
+          message: '找不到這筆 record',
+        },
+      ],
+      conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 1,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
+      serverTime: '2026-06-16T02:00:00.000Z',
+    });
+
+    await pushPendingOperations();
+
+    expect(syncOperationRepository.markSynced).toHaveBeenCalledWith('op-1', {
+      lastSyncedAt: '2026-06-16T02:00:00.000Z',
+    });
+    expect(syncOperationRepository.markFailed).not.toHaveBeenCalled();
+    expect(recordLocalRepository.markFailed).not.toHaveBeenCalled();
+  });
+
   it('marks conflicts without overwriting local entity data', async () => {
     vi.mocked(syncOperationRepository.getAll).mockResolvedValue([pendingOperation]);
     vi.mocked(pushSyncOperations).mockResolvedValue({
@@ -661,6 +717,49 @@ describe('client sync service', () => {
       }),
     );
     expect(setLastPulledAt).toHaveBeenCalledWith('2026-06-16T03:00:00.000Z');
+  });
+
+  it('requeues a single failed operation before pushing again', async () => {
+    vi.mocked(syncOperationRepository.getById).mockResolvedValue({
+      ...pendingOperation,
+      status: 'failed',
+      syncStatus: 'failed',
+      lastError: 'PAYLOAD_INVALID: 欄位無效',
+    });
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([pendingOperation]);
+    vi.mocked(pushSyncOperations).mockResolvedValue({
+      accepted: [],
+      rejected: [],
+      conflicts: [],
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T02:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T02:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T02:00:00.000Z',
+        lastPushAt: '2026-06-16T02:00:00.000Z',
+        lastPullAt: null,
+        lastCheckpointAt: null,
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 0,
+        pulledTombstoneCount: 0,
+      },
+      serverTime: '2026-06-16T02:00:00.000Z',
+    });
+
+    await retrySyncOperation('op-1');
+
+    expect(syncOperationRepository.requeue).toHaveBeenCalledWith('op-1');
+    expect(pushSyncOperations).toHaveBeenCalled();
   });
 
   it('applies pull tombstones as local soft delete', async () => {
