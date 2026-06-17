@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 
+import { ItemSettingsCard } from '@/features/items/components/item-settings-card';
 import { AppShell } from '@/features/records/components/app-shell';
 import { CreateEntryView } from '@/features/records/components/create-entry-view';
 import { DashboardView } from '@/features/records/components/dashboard-view';
@@ -16,22 +17,15 @@ import { SettingsView } from '@/features/records/components/settings-view';
 import { AccountPanel } from '@/features/auth/components/account-panel';
 import { authClient } from '@/lib/auth/auth-client';
 import { ActionButton } from '@/components/ui/action-button';
-import { IconButton } from '@/components/ui/icon-button';
 import {
   ActivityIcon,
-  ArrowDownIcon,
-  EyeIcon,
-  EyeOffIcon,
-  ArrowUpIcon,
   ArrowRightIcon,
   HeartPulseIcon,
   LoaderIcon,
-  PencilIcon,
   PlusIcon,
   RefreshIcon,
   SaveIcon,
   SearchIcon,
-  TrashIcon,
   Undo2Icon,
   XIcon,
   type AppTabIconName,
@@ -183,12 +177,6 @@ function getItemTypeTabClass(
   return optionValue === 'symptom'
     ? 'border-rose-400 bg-rose-500 text-white'
     : 'border-[var(--accent)] bg-[var(--accent)] text-white';
-}
-
-function getItemTypeBadgeClass(type: 'metric' | 'symptom') {
-  return type === 'symptom'
-    ? 'bg-rose-100 text-rose-700'
-    : 'bg-[var(--accent-soft)] text-[var(--accent)]';
 }
 
 function formatDateTimeLocal(date = new Date()) {
@@ -1549,144 +1537,34 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
               目前還沒有啟用中的項目。你可以先建立一個最常記錄的指標，像是睡眠、喝水或頭痛程度。
             </div>
           ) : (
-            activeItems.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-[var(--line)] bg-white p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {editingItemId === item.id ? (
-                        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-                          <TextInput
-                            value={editingItemTitle}
-                            onChange={(event) => setEditingItemTitle(event.target.value)}
-                            placeholder="請輸入項目名稱"
-                            className="sm:max-w-xs"
-                          />
-                          <div className="flex gap-2">
-                            <IconButton
-                              label={isMutatingItem ? '儲存中…' : '儲存名稱'}
-                              icon={
-                                isMutatingItem ? (
-                                  <LoaderIcon size={18} />
-                                ) : (
-                                  <SaveIcon size={18} />
-                                )
-                              }
-                              disabled={isMutatingItem}
-                              onClick={() => void saveRenamedItem(item)}
-                            />
-                            <IconButton
-                              label="取消改名"
-                              icon={<XIcon size={18} />}
-                              disabled={isMutatingItem}
-                              onClick={cancelRenameItem}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <h3 className="text-lg font-semibold">{item.title}</h3>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${getItemTypeBadgeClass(item.type)}`}
-                          >
-                            {item.type === 'metric' ? '指標' : '症狀'}
-                          </span>
-                          {getSyncStatusPresentation(item.syncStatus) ? (
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
-                            >
-                              {getSyncStatusPresentation(item.syncStatus)?.label}
-                            </span>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm text-[var(--muted)]">
-                      格式：{getValueTypeLabel(item.valueType, item.type)}
-                      {item.unit ? ` / 單位：${item.unit}` : ''}
-                      {item.valueType === 'scale' &&
-                      item.scaleMin !== undefined &&
-                      item.scaleMax !== undefined
-                        ? ` / 範圍：${item.scaleMin} - ${item.scaleMax}`
-                        : ''}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0
-                        ? '尚無歷史紀錄，可直接刪除。'
-                        : `已有 ${itemRecordHistoryCounts[item.id] ?? 0} 筆歷史紀錄。`}
-                    </p>
-                  </div>
-                  {editingItemId === item.id ? null : (
-                    <div className="flex shrink-0 flex-col gap-2 sm:self-start">
-                      <div className="flex justify-end gap-2">
-                        <IconButton
-                          label="修改名稱"
-                          icon={<PencilIcon size={18} />}
-                          disabled={isMutatingItem}
-                          onClick={() => startRenameItem(item)}
-                        />
-                        {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
-                          <IconButton
-                            label={isMutatingItem ? '刪除中…' : '刪除'}
-                            icon={
-                              isMutatingItem ? (
-                                <LoaderIcon size={18} />
-                              ) : (
-                                <TrashIcon size={18} />
-                              )
-                            }
-                            disabled={isMutatingItem}
-                            onClick={() => void deleteItem(item)}
-                            className="text-rose-600"
-                          />
-                        ) : null}
-                        <IconButton
-                          label={isMutatingItem ? '處理中…' : '封存'}
-                          icon={
-                            isMutatingItem ? (
-                              <LoaderIcon size={18} />
-                            ) : (
-                              <EyeOffIcon size={18} />
-                            )
-                          }
-                          disabled={isMutatingItem}
-                          onClick={() => void toggleArchive(item, true)}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <IconButton
-                          label="往前移動"
-                          icon={<ArrowUpIcon size={18} />}
-                          disabled={
-                            isMutatingItem ||
-                            !activeItems
-                              .filter((currentItem) => currentItem.type === item.type)
-                              .some((currentItem) => currentItem.id === item.id) ||
-                            activeItems.filter((currentItem) => currentItem.type === item.type)[0]
-                              ?.id === item.id
-                          }
-                          onClick={() => void moveItem(item, 'up')}
-                        />
-                        <IconButton
-                          label="往後移動"
-                          icon={<ArrowDownIcon size={18} />}
-                          disabled={
-                            isMutatingItem ||
-                            activeItems
-                              .filter((currentItem) => currentItem.type === item.type)
-                              .at(-1)?.id === item.id
-                          }
-                          onClick={() => void moveItem(item, 'down')}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </article>
-            ))
+            activeItems.map((item) => {
+              const siblingItems = activeItems.filter(
+                (currentItem) => currentItem.type === item.type,
+              );
+
+              return (
+                <ItemSettingsCard
+                  key={item.id}
+                  item={item}
+                  variant="active"
+                  recordHistoryCount={itemRecordHistoryCounts[item.id] ?? 0}
+                  isMutating={isMutatingItem}
+                  isEditing={editingItemId === item.id}
+                  editingTitle={editingItemTitle}
+                  onEditingTitleChange={setEditingItemTitle}
+                  onStartEdit={() => startRenameItem(item)}
+                  onCancelEdit={cancelRenameItem}
+                  onSaveEdit={() => void saveRenamedItem(item)}
+                  onDelete={() => void deleteItem(item)}
+                  onToggleArchive={() => void toggleArchive(item, true)}
+                  onMoveUp={() => void moveItem(item, 'up')}
+                  onMoveDown={() => void moveItem(item, 'down')}
+                  canMoveUp={siblingItems[0]?.id !== item.id}
+                  canMoveDown={siblingItems.at(-1)?.id !== item.id}
+                  valueTypeLabel={getValueTypeLabel(item.valueType, item.type)}
+                />
+              );
+            })
           )}
         </div>
       </section>
@@ -1703,128 +1581,34 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
               目前沒有已封存項目。
             </div>
           ) : (
-            archivedItems.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-[var(--line)] bg-stone-50 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    {editingItemId === item.id ? (
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <TextInput
-                          value={editingItemTitle}
-                          onChange={(event) => setEditingItemTitle(event.target.value)}
-                          placeholder="請輸入項目名稱"
-                          className="sm:max-w-xs"
-                        />
-                        <div className="flex gap-2">
-                          <IconButton
-                            label={isMutatingItem ? '儲存中…' : '儲存名稱'}
-                            icon={
-                              isMutatingItem ? (
-                                <LoaderIcon size={18} />
-                              ) : (
-                                <SaveIcon size={18} />
-                              )
-                            }
-                            disabled={isMutatingItem}
-                            onClick={() => void saveRenamedItem(item)}
-                          />
-                          <IconButton
-                            label="取消改名"
-                            icon={<XIcon size={18} />}
-                            disabled={isMutatingItem}
-                            onClick={cancelRenameItem}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <h3 className="text-base font-semibold">{item.title}</h3>
-                    )}
-                    <p className="mt-2 text-sm text-[var(--muted)]">
-                      {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType, item.type)}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0
-                        ? '尚無歷史紀錄，可恢復或直接刪除。'
-                        : `已有 ${itemRecordHistoryCounts[item.id] ?? 0} 筆歷史紀錄。`}
-                    </p>
-                    {getSyncStatusPresentation(item.syncStatus) ? (
-                      <p className="mt-2">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${getSyncStatusPresentation(item.syncStatus)?.className}`}
-                        >
-                          {getSyncStatusPresentation(item.syncStatus)?.label}
-                        </span>
-                      </p>
-                    ) : null}
-                  </div>
-                  {editingItemId === item.id ? null : (
-                    <div className="flex shrink-0 flex-col gap-2 sm:self-start">
-                      <div className="flex justify-end gap-2">
-                        <IconButton
-                          label="修改名稱"
-                          icon={<PencilIcon size={18} />}
-                          disabled={isMutatingItem}
-                          onClick={() => startRenameItem(item)}
-                        />
-                        {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
-                          <IconButton
-                            label={isMutatingItem ? '刪除中…' : '刪除'}
-                            icon={
-                              isMutatingItem ? (
-                                <LoaderIcon size={18} />
-                              ) : (
-                                <TrashIcon size={18} />
-                              )
-                            }
-                            disabled={isMutatingItem}
-                            onClick={() => void deleteItem(item)}
-                            className="text-rose-600"
-                          />
-                        ) : null}
-                        <IconButton
-                          label={isMutatingItem ? '處理中…' : '恢復'}
-                          icon={
-                            isMutatingItem ? (
-                              <LoaderIcon size={18} />
-                            ) : (
-                              <EyeIcon size={18} />
-                            )
-                          }
-                          disabled={isMutatingItem}
-                          onClick={() => void toggleArchive(item, false)}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <IconButton
-                          label="往前移動"
-                          icon={<ArrowUpIcon size={18} />}
-                          disabled={
-                            isMutatingItem ||
-                            archivedItems.filter((currentItem) => currentItem.type === item.type)[0]
-                              ?.id === item.id
-                          }
-                          onClick={() => void moveItem(item, 'up')}
-                        />
-                        <IconButton
-                          label="往後移動"
-                          icon={<ArrowDownIcon size={18} />}
-                          disabled={
-                            isMutatingItem ||
-                            archivedItems
-                              .filter((currentItem) => currentItem.type === item.type)
-                              .at(-1)?.id === item.id
-                          }
-                          onClick={() => void moveItem(item, 'down')}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </article>
-            ))
+            archivedItems.map((item) => {
+              const siblingItems = archivedItems.filter(
+                (currentItem) => currentItem.type === item.type,
+              );
+
+              return (
+                <ItemSettingsCard
+                  key={item.id}
+                  item={item}
+                  variant="archived"
+                  recordHistoryCount={itemRecordHistoryCounts[item.id] ?? 0}
+                  isMutating={isMutatingItem}
+                  isEditing={editingItemId === item.id}
+                  editingTitle={editingItemTitle}
+                  onEditingTitleChange={setEditingItemTitle}
+                  onStartEdit={() => startRenameItem(item)}
+                  onCancelEdit={cancelRenameItem}
+                  onSaveEdit={() => void saveRenamedItem(item)}
+                  onDelete={() => void deleteItem(item)}
+                  onToggleArchive={() => void toggleArchive(item, false)}
+                  onMoveUp={() => void moveItem(item, 'up')}
+                  onMoveDown={() => void moveItem(item, 'down')}
+                  canMoveUp={siblingItems[0]?.id !== item.id}
+                  canMoveDown={siblingItems.at(-1)?.id !== item.id}
+                  valueTypeLabel={getValueTypeLabel(item.valueType, item.type)}
+                />
+              );
+            })
           )}
         </div>
       </section>
