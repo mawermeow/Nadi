@@ -17,11 +17,9 @@ export const sectionCopy = {
   },
 
   reports: {
-    page: '將已記錄的訊號整理為摘要與關聯觀察，協助回顧與理解。',
-    summary:
-      '選定時間區間，檢視趨勢與出現次數；結果僅供自我觀察，不構成醫療建議。',
-    correlation:
-      '檢視症狀出現前後，可能與之相伴的日常紀錄；結果僅供參考，不代表因果關係或醫療結論。',
+    page: '將已記錄的訊號整理為摘要與關聯報表，協助回顧與理解。',
+    summary: '選定時間區間，檢視各項目的趨勢與出現次數。',
+    correlation: '檢視症狀出現前後，可能與之相伴的日常紀錄。',
     localModeSummary: '登入並連結帳號後，可檢視雲端資料的摘要報表。',
     localModeCorrelation: '登入並連結帳號後，可檢視雲端資料的關聯報表。',
   },
@@ -37,7 +35,7 @@ export const sectionCopy = {
   },
 
   items: {
-    createItem: '定義需要觀察的日常訊號，建立後可隨時調整。',
+    createItem: '定義需要記錄的日常訊號，建立後可隨時調整。',
     activeItems: '目前啟用中、可用於記錄的項目。',
   },
 } as const;

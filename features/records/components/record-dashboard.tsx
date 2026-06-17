@@ -1893,9 +1893,9 @@ export function RecordDashboard({
                   </p>
                 </div>
                 <div className="rounded-2xl border border-[var(--line)] bg-white p-4">
-                  <p className="text-sm text-[var(--muted)]">最近診斷</p>
+                  <p className="text-sm text-[var(--muted)]">最近同步訊息</p>
                   <p className="mt-2 text-sm font-medium">
-                    {syncState.diagnostics?.lastMessage ?? '目前沒有診斷事件'}
+                    {syncState.diagnostics?.lastMessage ?? '目前沒有同步訊息'}
                   </p>
                 </div>
               </div>

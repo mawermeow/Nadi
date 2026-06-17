@@ -87,17 +87,17 @@ function buildCandidateDescription(
   insufficientSample: boolean,
 ) {
   const observationByMode = {
-    higher: `在目前資料中，可以觀察到症狀前 ${windowHours} 小時內，這個項目的數值可能偏高`,
-    lower: `在目前資料中，可以觀察到症狀前 ${windowHours} 小時內，這個項目的數值可能偏低`,
-    'more-often': `在目前資料中，可以觀察到症狀前 ${windowHours} 小時內，這個項目的紀錄可能較常出現`,
-    'less-often': `在目前資料中，可以觀察到症狀前 ${windowHours} 小時內，這個項目的紀錄可能較少出現`,
+    higher: `症狀前 ${windowHours} 小時內，這個項目的數值偏高`,
+    lower: `症狀前 ${windowHours} 小時內，這個項目的數值偏低`,
+    'more-often': `症狀前 ${windowHours} 小時內，這個項目的紀錄較常出現`,
+    'less-often': `症狀前 ${windowHours} 小時內，這個項目的紀錄較少出現`,
   } as const;
 
   if (insufficientSample) {
-    return `${observationByMode[mode]}；樣本數仍不足，需要更多紀錄確認。`;
+    return `${observationByMode[mode]}（樣本數仍不足）`;
   }
 
-  return `${observationByMode[mode]}；這只代表可能相關，並不代表因果關係。`;
+  return observationByMode[mode];
 }
 
 export function createEmptyCorrelationReport(
@@ -406,12 +406,12 @@ export function getDefaultCorrelationDescription(report: CorrelationReportRespon
   }
 
   if (report.symptomSampleSize < report.minimumSampleSize) {
-    return `目前只有 ${report.symptomSampleSize} 筆症狀事件，樣本數仍不足，結果只適合作為初步觀察。`;
+    return `目前只有 ${report.symptomSampleSize} 筆症狀事件，樣本數仍不足。`;
   }
 
   if (report.candidates.length === 0) {
     return '目前資料中還沒有明顯可整理的關聯訊號。你可以持續記錄，之後再回來查看。';
   }
 
-  return `以下內容只描述可能相關的模式，不代表因果關係或醫療結論。`;
+  return `以下是症狀前 ${report.windowHours} 小時內，與其他紀錄對照後的候選項目。`;
 }

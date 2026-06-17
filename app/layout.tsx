@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Nadi',
-  description: 'Observe yourself, not optimize yourself.',
+  description: '記錄自己的生活訊號',
   icons: {
     icon: '/logo/nadi-logo-pure.png',
     shortcut: '/logo/nadi-logo-pure.png',

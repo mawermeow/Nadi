@@ -110,7 +110,7 @@ export function CorrelationReportSection({
 
   async function fetchReport() {
     if (requiresAuth) {
-      setReportError('登入帳號並連結裝置後，才能讀取雲端關聯觀察。');
+      setReportError('登入帳號並連結裝置後，才能讀取雲端關聯報表。');
       return;
     }
 
@@ -154,7 +154,7 @@ export function CorrelationReportSection({
     <section className="rounded-[1.75rem] border border-rose-100 bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-rose-700">關聯觀察</h2>
+          <h2 className="text-xl font-semibold text-rose-700">關聯報表</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
             {sectionCopy.reports.correlation}
           </p>
@@ -209,7 +209,7 @@ export function CorrelationReportSection({
           </div>
 
           <div className="mt-4">
-            <p className="text-sm font-medium">觀察窗口</p>
+            <p className="text-sm font-medium">回看窗口</p>
             <div className="mt-2 grid grid-cols-3 gap-3">
               {windowOptions.map((windowHours) => {
                 const isActive = filterState.windowHours === windowHours;
@@ -242,7 +242,7 @@ export function CorrelationReportSection({
               icon={
                 isLoading ? <LoaderIcon size={18} /> : <SearchIcon size={18} />
               }
-              label={isLoading ? '整理關聯中…' : '更新觀察'}
+              label={isLoading ? '整理關聯中…' : '更新報表'}
               onClick={fetchReport}
             />
             <ActionButton
@@ -280,7 +280,7 @@ export function CorrelationReportSection({
         <div className="mt-5 grid gap-4">
           <div className="rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-4">
             <p className="text-sm font-medium text-rose-700">
-              {(selectedSymptomItem?.title ?? report.symptomTitle) || '症狀觀察'}
+              {(selectedSymptomItem?.title ?? report.symptomTitle) || '症狀關聯'}
             </p>
             <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
               {getDefaultCorrelationDescription(report)}
@@ -334,7 +334,7 @@ export function CorrelationReportSection({
                     <span
                       className={`rounded-full px-3 py-1 text-sm font-semibold ${getScoreClass(candidate.correlationScore)}`}
                     >
-                      觀察分數 {formatScore(candidate.correlationScore)}
+                      關聯分數 {formatScore(candidate.correlationScore)}
                     </span>
                   </div>
 

@@ -272,15 +272,12 @@ export function SummaryReportSection({
             </section>
 
             <section className="rounded-2xl border border-[var(--line)] bg-white p-3.5 sm:p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-rose-700">症狀摘要</h3>
-                <span className="text-sm text-rose-600">保留觀察語氣，不做推論</span>
-              </div>
+              <h3 className="text-lg font-semibold text-rose-700">症狀摘要</h3>
               <div className="mt-4 grid gap-3">
                 {report.symptoms.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-[var(--line)] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
                     這段時間內還沒有症狀資料。
-                    若你想觀察關聯變化，可以先持續記錄症狀出現的時間與程度。
+                    若想查看關聯報表，可以先持續記錄症狀出現的時間與程度。
                   </div>
                 ) : (
                   report.symptoms.map((symptom) => (

@@ -127,10 +127,10 @@ describe('buildCorrelationReport', () => {
       correlationScore: -0.44,
       sampleSize: 2,
     });
-    expect(report.candidates[1]?.description).toContain('可能偏低');
+    expect(report.candidates[1]?.description).toContain('偏低');
   });
 
-  it('uses conservative wording when symptom sample size is insufficient', () => {
+  it('marks candidate descriptions when symptom sample size is insufficient', () => {
     const report = buildCorrelationReport(
       [
         {
