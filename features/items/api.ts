@@ -8,6 +8,7 @@ export type ItemResponse = {
   valueType: 'number' | 'boolean' | 'scale' | 'text';
   scaleMin?: number;
   scaleMax?: number;
+  sortOrder: number;
   archived: boolean;
   syncStatus?: 'pending' | 'synced' | 'conflict' | 'failed';
   version: number;
@@ -23,6 +24,7 @@ export function toItemResponse(item: Item): ItemResponse {
     valueType: item.valueType,
     scaleMin: item.scaleMin ?? undefined,
     scaleMax: item.scaleMax ?? undefined,
+    sortOrder: item.sortOrder,
     archived: item.archived,
     syncStatus: item.syncStatus,
     version: item.version,

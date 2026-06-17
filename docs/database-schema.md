@@ -151,6 +151,7 @@
 | `value_type` | `item_value_type` | `number`, `boolean`, `scale`, or `text`. |
 | `scale_min` | `integer` | Optional lower bound for scale items. |
 | `scale_max` | `integer` | Optional upper bound for scale items. |
+| `sort_order` | `integer` | 同一位使用者、同一 item type 內的手動排序值，越小越前面。 |
 | `archived` | `boolean` | Product-level archive flag, defaults to `false`. |
 | `sync_status` | `sync_status` | Sync state, server-side default `synced`. |
 | `version` | `integer` | Version field, default `1`. |

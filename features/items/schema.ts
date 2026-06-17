@@ -66,6 +66,7 @@ export const createItemSchema = z
     type: itemTypeSchema,
     unit: optionalUnitSchema,
     valueType: itemValueTypeSchema,
+    sortOrder: z.coerce.number().int().min(0, 'sortOrder 不可小於 0').optional(),
     scaleMin: optionalIntegerSchema,
     scaleMax: optionalIntegerSchema,
   })
@@ -122,6 +123,7 @@ export const updateItemSchema = z
       .optional(),
     unit: nullableOptionalUnitSchema,
     archived: z.boolean().optional(),
+    sortOrder: z.coerce.number().int().min(0, 'sortOrder 不可小於 0').optional(),
     scaleMin: nullableOptionalIntegerSchema,
     scaleMax: nullableOptionalIntegerSchema,
   })
@@ -130,6 +132,7 @@ export const updateItemSchema = z
       value.title !== undefined ||
       value.unit !== undefined ||
       value.archived !== undefined ||
+      value.sortOrder !== undefined ||
       value.scaleMin !== undefined ||
       value.scaleMax !== undefined,
     {

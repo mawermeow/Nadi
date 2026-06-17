@@ -13,6 +13,7 @@ type CreateLocalItemInput = {
   valueType: 'number' | 'boolean' | 'scale' | 'text';
   scaleMin?: number | null;
   scaleMax?: number | null;
+  sortOrder?: number | null;
 };
 
 type UpdateLocalItemInput = {
@@ -22,6 +23,7 @@ type UpdateLocalItemInput = {
   archived?: boolean;
   scaleMin?: number | null;
   scaleMax?: number | null;
+  sortOrder?: number | null;
 };
 
 type CreateLocalRecordInput = {
@@ -191,6 +193,22 @@ async function getItemRecordHistoryCount(itemId: string, userId: string | null) 
   return records.filter((record) => record.itemId === itemId).length;
 }
 
+async function getNextLocalItemSortOrder(
+  userId: string | null,
+  type: LocalItem['type'],
+) {
+  const items = await itemLocalRepository.getAll({
+    includeDeleted: true,
+    userId,
+  });
+
+  return (
+    items
+      .filter((item) => item.deletedAt === null && item.type === type)
+      .reduce((max, item) => Math.max(max, item.sortOrder), -1) + 1
+  );
+}
+
 export async function createLocalItem(input: CreateLocalItemInput) {
   const deviceId = await getOrCreateDeviceId();
   const userId = await getActiveLocalDataUserId();
@@ -198,6 +216,8 @@ export async function createLocalItem(input: CreateLocalItemInput) {
   const id = input.id ?? crypto.randomUUID();
   const scaleMin = input.scaleMin ?? null;
   const scaleMax = input.scaleMax ?? null;
+  const sortOrder =
+    input.sortOrder ?? (await getNextLocalItemSortOrder(userId, input.type));
 
   validateLocalItemScale(input.valueType, scaleMin, scaleMax);
 
@@ -210,6 +230,7 @@ export async function createLocalItem(input: CreateLocalItemInput) {
     valueType: input.valueType,
     scaleMin,
     scaleMax,
+    sortOrder,
     archived: false,
     syncStatus: 'pending',
     createdAt: now,
@@ -235,6 +256,7 @@ export async function createLocalItem(input: CreateLocalItemInput) {
       valueType: item.valueType,
       scaleMin: item.scaleMin,
       scaleMax: item.scaleMax,
+      sortOrder: item.sortOrder,
     },
     timestamp: now,
   });
@@ -265,6 +287,7 @@ export async function updateLocalItem(input: UpdateLocalItemInput) {
     archived: input.archived ?? existingItem.archived,
     scaleMin: nextScaleMin,
     scaleMax: nextScaleMax,
+    sortOrder: input.sortOrder ?? existingItem.sortOrder,
     syncStatus: 'pending',
     updatedAt: now,
     version: existingItem.version + 1,
@@ -285,6 +308,7 @@ export async function updateLocalItem(input: UpdateLocalItemInput) {
       archived: input.archived,
       scaleMin: input.scaleMin,
       scaleMax: input.scaleMax,
+      sortOrder: input.sortOrder,
     },
     timestamp: now,
   });

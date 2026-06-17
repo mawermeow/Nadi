@@ -58,6 +58,7 @@ const baseItem = {
   valueType: 'number' as const,
   scaleMin: null,
   scaleMax: null,
+  sortOrder: 0,
   archived: false,
   syncStatus: 'synced' as const,
   version: 1,

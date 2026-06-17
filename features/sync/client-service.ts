@@ -215,6 +215,7 @@ async function upsertRemoteItem(item: SyncItemEntity, serverTime: string) {
     valueType: item.valueType,
     scaleMin: item.scaleMin,
     scaleMax: item.scaleMax,
+    sortOrder: item.sortOrder,
     archived: item.archived,
     syncStatus: 'synced',
     createdAt: item.createdAt,

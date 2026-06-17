@@ -72,6 +72,7 @@ export function mapLocalItemToItemResponse(item: LocalItem): ItemResponse {
     valueType: item.valueType,
     scaleMin: item.scaleMin ?? undefined,
     scaleMax: item.scaleMax ?? undefined,
+    sortOrder: item.sortOrder,
     archived: item.archived,
     syncStatus: item.syncStatus,
     version: item.version,
@@ -198,6 +199,7 @@ function toLocalItemFromResponse(item: ItemResponse): LocalItem {
     valueType: item.valueType,
     scaleMin: item.scaleMin ?? null,
     scaleMax: item.scaleMax ?? null,
+    sortOrder: item.sortOrder,
     archived: item.archived,
     syncStatus: item.syncStatus ?? 'synced',
     createdAt: item.createdAt,
@@ -298,7 +300,21 @@ export async function loadLocalItems() {
   });
   return items
     .filter((item) => item.deletedAt === null)
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .sort((left, right) => {
+      const typeCompare = left.type.localeCompare(right.type);
+
+      if (typeCompare !== 0) {
+        return typeCompare;
+      }
+
+      const sortOrderCompare = left.sortOrder - right.sortOrder;
+
+      if (sortOrderCompare !== 0) {
+        return sortOrderCompare;
+      }
+
+      return right.createdAt.localeCompare(left.createdAt);
+    })
     .map(mapLocalItemToItemResponse);
 }
 

@@ -19,6 +19,7 @@ export type LocalItem = LocalEntityBase & {
   valueType: 'number' | 'boolean' | 'scale' | 'text';
   scaleMin: number | null;
   scaleMax: number | null;
+  sortOrder: number;
   archived: boolean;
 };
 

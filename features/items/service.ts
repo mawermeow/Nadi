@@ -15,6 +15,7 @@ import {
   createItemRecord,
   findItemById,
   findItemByIdForUser,
+  findLastItemSortOrderByUserAndType,
   listItemsByUserId,
   updateItemRecord,
 } from './repository';
@@ -66,6 +67,10 @@ export async function createItemForUser(user: SessionUser, input: CreateItemInpu
   const validatedInput = createItemSchema.parse(input);
   const nextId = validatedInput.id ?? randomUUID();
   const existingItem = await findItemById(nextId);
+  const lastSortOrder = await findLastItemSortOrderByUserAndType(
+    user.id,
+    validatedInput.type,
+  );
 
   if (existingItem) {
     throw new AppError('這個 id 已存在', 409, 'ITEM_ID_CONFLICT');
@@ -80,6 +85,7 @@ export async function createItemForUser(user: SessionUser, input: CreateItemInpu
     valueType: validatedInput.valueType,
     scaleMin: validatedInput.scaleMin ?? null,
     scaleMax: validatedInput.scaleMax ?? null,
+    sortOrder: validatedInput.sortOrder ?? (lastSortOrder ?? -1) + 1,
     archived: false,
   });
 }
@@ -131,6 +137,7 @@ export async function updateItemForUser(
         ? existingItem.unit
         : validatedInput.unit,
     archived: validatedInput.archived ?? existingItem.archived,
+    sortOrder: validatedInput.sortOrder ?? existingItem.sortOrder,
     scaleMin: nextScaleMin,
     scaleMax: nextScaleMax,
     version: existingItem.version + 1,

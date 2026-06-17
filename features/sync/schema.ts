@@ -85,6 +85,7 @@ const syncItemCreatePayloadSchema = z
     valueType: itemValueTypeSchema,
     scaleMin: optionalIntegerSchema,
     scaleMax: optionalIntegerSchema,
+    sortOrder: z.coerce.number().int().min(0, 'sortOrder 不可小於 0').optional(),
   })
   .superRefine((value, context) => {
     if (value.valueType === 'scale') {
@@ -138,6 +139,7 @@ const syncItemUpdatePayloadSchema = z
       .optional(),
     unit: nullableOptionalUnitSchema,
     archived: z.boolean().optional(),
+    sortOrder: z.coerce.number().int().min(0, 'sortOrder 不可小於 0').optional(),
     scaleMin: nullableOptionalIntegerSchema,
     scaleMax: nullableOptionalIntegerSchema,
   })
@@ -146,6 +148,7 @@ const syncItemUpdatePayloadSchema = z
       value.title !== undefined ||
       value.unit !== undefined ||
       value.archived !== undefined ||
+      value.sortOrder !== undefined ||
       value.scaleMin !== undefined ||
       value.scaleMax !== undefined,
     {

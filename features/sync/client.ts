@@ -37,6 +37,7 @@ const syncItemEntitySchema = z.object({
   valueType: z.enum(['number', 'boolean', 'scale', 'text']),
   scaleMin: z.number().int().nullable(),
   scaleMax: z.number().int().nullable(),
+  sortOrder: z.number().int().min(0),
   archived: z.boolean(),
   version: z.number().int().positive(),
   deletedAt: isoDateTimeSchema.nullable(),

@@ -80,6 +80,7 @@ Request body:
   "title": "頭痛程度",
   "type": "symptom",
   "valueType": "scale",
+  "sortOrder": 3,
   "scaleMin": 0,
   "scaleMax": 10
 }
@@ -94,12 +95,14 @@ Rules:
 - `type` 只能是 `metric` 或 `symptom`
 - `valueType` 只能是 `number`、`boolean`、`scale`、`text`
 - `scale` 型項目必須提供 `scaleMin` 與 `scaleMax`
+- `sortOrder` 可選填；若未提供，server 會在同一 item type 內自動排到最後
 
 ### `PATCH /v1/items/:itemId`
 
 Version 規則：
 
 - 可接受 `version`
+- 可接受 `sortOrder`
 - 若提供 `version` 且與目前資料不一致，回傳 `409 conflict`
 - 若未提供 `version`，目前仍暫時允許更新
 - 更新成功後，server 會將 `version + 1`

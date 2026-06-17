@@ -19,8 +19,10 @@ import { ActionButton } from '@/components/ui/action-button';
 import { IconButton } from '@/components/ui/icon-button';
 import {
   ActivityIcon,
+  ArrowDownIcon,
   EyeIcon,
   EyeOffIcon,
+  ArrowUpIcon,
   ArrowRightIcon,
   HeartPulseIcon,
   LoaderIcon,
@@ -567,6 +569,49 @@ export function RecordDashboard({
         void runSync().catch(() => undefined);
       } catch (error) {
         setItemError(error instanceof Error ? error.message : '刪除項目失敗');
+      }
+    });
+  }
+
+  async function moveItem(item: ItemResponse, direction: 'up' | 'down') {
+    const siblingItems = items.filter(
+      (currentItem) =>
+        currentItem.type === item.type &&
+        currentItem.archived === item.archived,
+    );
+    const currentIndex = siblingItems.findIndex(
+      (currentItem) => currentItem.id === item.id,
+    );
+    const targetIndex =
+      direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const targetItem = siblingItems[targetIndex];
+
+    if (currentIndex === -1 || !targetItem) {
+      return;
+    }
+
+    setItemError(null);
+    setItemNotice(null);
+
+    startItemMutationTransition(async () => {
+      try {
+        await updateLocalItem({
+          id: item.id,
+          sortOrder: targetItem.sortOrder,
+        });
+        await updateLocalItem({
+          id: targetItem.id,
+          sortOrder: item.sortOrder,
+        });
+        setItemNotice(
+          direction === 'up'
+            ? `已將「${item.title}」往前移動。`
+            : `已將「${item.title}」往後移動。`,
+        );
+        await Promise.all([loadLocalData(), loadItemRecordHistoryCounts()]);
+        void runSync().catch(() => undefined);
+      } catch (error) {
+        setItemError(error instanceof Error ? error.message : '調整排序失敗');
       }
     });
   }
@@ -1514,40 +1559,68 @@ export function RecordDashboard({
                     </p>
                   </div>
                   {editingItemId === item.id ? null : (
-                    <div className="flex shrink-0 gap-2 sm:self-start">
-                      <IconButton
-                        label="修改名稱"
-                        icon={<PencilIcon size={18} />}
-                        disabled={isMutatingItem}
-                        onClick={() => startRenameItem(item)}
-                      />
-                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
+                    <div className="flex shrink-0 flex-col gap-2 sm:self-start">
+                      <div className="flex justify-end gap-2">
                         <IconButton
-                          label={isMutatingItem ? '刪除中…' : '刪除'}
+                          label="修改名稱"
+                          icon={<PencilIcon size={18} />}
+                          disabled={isMutatingItem}
+                          onClick={() => startRenameItem(item)}
+                        />
+                        {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
+                          <IconButton
+                            label={isMutatingItem ? '刪除中…' : '刪除'}
+                            icon={
+                              isMutatingItem ? (
+                                <LoaderIcon size={18} />
+                              ) : (
+                                <TrashIcon size={18} />
+                              )
+                            }
+                            disabled={isMutatingItem}
+                            onClick={() => void deleteItem(item)}
+                            className="text-rose-600"
+                          />
+                        ) : null}
+                        <IconButton
+                          label={isMutatingItem ? '處理中…' : '封存'}
                           icon={
                             isMutatingItem ? (
                               <LoaderIcon size={18} />
                             ) : (
-                              <TrashIcon size={18} />
+                              <EyeOffIcon size={18} />
                             )
                           }
                           disabled={isMutatingItem}
-                          onClick={() => void deleteItem(item)}
-                          className="text-rose-600"
+                          onClick={() => void toggleArchive(item, true)}
                         />
-                      ) : null}
-                      <IconButton
-                        label={isMutatingItem ? '處理中…' : '封存'}
-                        icon={
-                          isMutatingItem ? (
-                            <LoaderIcon size={18} />
-                          ) : (
-                            <EyeOffIcon size={18} />
-                          )
-                        }
-                        disabled={isMutatingItem}
-                        onClick={() => void toggleArchive(item, true)}
-                      />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <IconButton
+                          label="往前移動"
+                          icon={<ArrowUpIcon size={18} />}
+                          disabled={
+                            isMutatingItem ||
+                            !activeItems
+                              .filter((currentItem) => currentItem.type === item.type)
+                              .some((currentItem) => currentItem.id === item.id) ||
+                            activeItems.filter((currentItem) => currentItem.type === item.type)[0]
+                              ?.id === item.id
+                          }
+                          onClick={() => void moveItem(item, 'up')}
+                        />
+                        <IconButton
+                          label="往後移動"
+                          icon={<ArrowDownIcon size={18} />}
+                          disabled={
+                            isMutatingItem ||
+                            activeItems
+                              .filter((currentItem) => currentItem.type === item.type)
+                              .at(-1)?.id === item.id
+                          }
+                          onClick={() => void moveItem(item, 'down')}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1627,40 +1700,65 @@ export function RecordDashboard({
                     ) : null}
                   </div>
                   {editingItemId === item.id ? null : (
-                    <div className="flex shrink-0 gap-2 sm:self-start">
-                      <IconButton
-                        label="修改名稱"
-                        icon={<PencilIcon size={18} />}
-                        disabled={isMutatingItem}
-                        onClick={() => startRenameItem(item)}
-                      />
-                      {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
+                    <div className="flex shrink-0 flex-col gap-2 sm:self-start">
+                      <div className="flex justify-end gap-2">
                         <IconButton
-                          label={isMutatingItem ? '刪除中…' : '刪除'}
+                          label="修改名稱"
+                          icon={<PencilIcon size={18} />}
+                          disabled={isMutatingItem}
+                          onClick={() => startRenameItem(item)}
+                        />
+                        {(itemRecordHistoryCounts[item.id] ?? 0) === 0 ? (
+                          <IconButton
+                            label={isMutatingItem ? '刪除中…' : '刪除'}
+                            icon={
+                              isMutatingItem ? (
+                                <LoaderIcon size={18} />
+                              ) : (
+                                <TrashIcon size={18} />
+                              )
+                            }
+                            disabled={isMutatingItem}
+                            onClick={() => void deleteItem(item)}
+                            className="text-rose-600"
+                          />
+                        ) : null}
+                        <IconButton
+                          label={isMutatingItem ? '處理中…' : '恢復'}
                           icon={
                             isMutatingItem ? (
                               <LoaderIcon size={18} />
                             ) : (
-                              <TrashIcon size={18} />
+                              <EyeIcon size={18} />
                             )
                           }
                           disabled={isMutatingItem}
-                          onClick={() => void deleteItem(item)}
-                          className="text-rose-600"
+                          onClick={() => void toggleArchive(item, false)}
                         />
-                      ) : null}
-                      <IconButton
-                        label={isMutatingItem ? '處理中…' : '恢復'}
-                        icon={
-                          isMutatingItem ? (
-                            <LoaderIcon size={18} />
-                          ) : (
-                            <EyeIcon size={18} />
-                          )
-                        }
-                        disabled={isMutatingItem}
-                        onClick={() => void toggleArchive(item, false)}
-                      />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <IconButton
+                          label="往前移動"
+                          icon={<ArrowUpIcon size={18} />}
+                          disabled={
+                            isMutatingItem ||
+                            archivedItems.filter((currentItem) => currentItem.type === item.type)[0]
+                              ?.id === item.id
+                          }
+                          onClick={() => void moveItem(item, 'up')}
+                        />
+                        <IconButton
+                          label="往後移動"
+                          icon={<ArrowDownIcon size={18} />}
+                          disabled={
+                            isMutatingItem ||
+                            archivedItems
+                              .filter((currentItem) => currentItem.type === item.type)
+                              .at(-1)?.id === item.id
+                          }
+                          onClick={() => void moveItem(item, 'down')}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

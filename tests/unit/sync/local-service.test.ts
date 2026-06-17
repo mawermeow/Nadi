@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/features/items/local-repository', () => ({
   itemLocalRepository: {
     delete: vi.fn(),
+    getAll: vi.fn(),
     getById: vi.fn(),
     upsert: vi.fn(),
     softDelete: vi.fn(),
@@ -52,6 +53,7 @@ describe('local service', () => {
     vi.clearAllMocks();
     vi.mocked(getOrCreateDeviceId).mockResolvedValue('device-local');
     vi.mocked(getActiveLocalDataUserId).mockResolvedValue('user-1');
+    vi.mocked(itemLocalRepository.getAll).mockResolvedValue([]);
     vi.mocked(syncOperationRepository.getAll).mockResolvedValue([]);
   });
 
@@ -87,6 +89,7 @@ describe('local service', () => {
       valueType: 'number',
       scaleMin: null,
       scaleMax: null,
+      sortOrder: 0,
       archived: false,
       syncStatus: 'synced',
       createdAt: '2026-06-16T00:00:00.000Z',
@@ -141,6 +144,7 @@ describe('local service', () => {
       valueType: 'number',
       scaleMin: null,
       scaleMax: null,
+      sortOrder: 0,
       archived: false,
       syncStatus: 'synced',
       createdAt: '2026-06-16T00:00:00.000Z',
@@ -177,6 +181,7 @@ describe('local service', () => {
       valueType: 'number',
       scaleMin: null,
       scaleMax: null,
+      sortOrder: 0,
       archived: false,
       syncStatus: 'synced',
       createdAt: '2026-06-16T00:00:00.000Z',
@@ -211,6 +216,7 @@ describe('local service', () => {
       valueType: 'number',
       scaleMin: null,
       scaleMax: null,
+      sortOrder: 0,
       archived: false,
       syncStatus: 'failed',
       createdAt: '2026-06-16T00:00:00.000Z',
@@ -285,6 +291,7 @@ describe('local service', () => {
       valueType: 'number',
       scaleMin: null,
       scaleMax: null,
+      sortOrder: 0,
       archived: false,
       syncStatus: 'synced',
       createdAt: '2026-06-16T00:00:00.000Z',

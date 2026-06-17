@@ -8,6 +8,7 @@ vi.mock('@/features/items/repository', () => ({
   createItemRecord: vi.fn(),
   findItemById: vi.fn(),
   findItemByIdForUser: vi.fn(),
+  findLastItemSortOrderByUserAndType: vi.fn(),
   listItemsByUserId: vi.fn(),
   updateItemRecord: vi.fn(),
 }));
@@ -16,6 +17,7 @@ import {
   createItemRecord,
   findItemById,
   findItemByIdForUser,
+  findLastItemSortOrderByUserAndType,
   listItemsByUserId,
   updateItemRecord,
 } from '@/features/items/repository';
@@ -39,11 +41,13 @@ const syncFields = {
   deletedAt: null,
   lastSyncedAt: null,
   deviceId: null,
+  sortOrder: 0,
 };
 
 describe('item service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(findLastItemSortOrderByUserAndType).mockResolvedValue(0);
   });
 
   it('lists only active items by default', async () => {

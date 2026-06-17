@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 
 import { items } from '@/db/schema';
 import { getDb } from '@/lib/db/client';
@@ -20,8 +20,23 @@ export async function listItemsByUserId(
           eq(items.archived, false),
           isNull(items.deletedAt),
         ),
-    orderBy: [desc(items.createdAt)],
+    orderBy: [asc(items.type), asc(items.sortOrder), desc(items.createdAt)],
   });
+}
+
+export async function findLastItemSortOrderByUserAndType(
+  userId: string,
+  type: (typeof items.$inferSelect)['type'],
+) {
+  const db = getDb();
+  const [item] = await db
+    .select({ sortOrder: items.sortOrder })
+    .from(items)
+    .where(and(eq(items.userId, userId), eq(items.type, type), isNull(items.deletedAt)))
+    .orderBy(desc(items.sortOrder), desc(items.createdAt))
+    .limit(1);
+
+  return item?.sortOrder ?? null;
 }
 
 export async function createItemRecord(input: typeof items.$inferInsert) {

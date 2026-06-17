@@ -46,6 +46,7 @@ const syncFields = {
   deletedAt: null,
   lastSyncedAt: null,
   deviceId: null,
+  sortOrder: 0,
 };
 
 describe('record service', () => {
