@@ -3,7 +3,7 @@ export const sectionCopy = {
   appTagline: '記錄、回顧、理解自己的生活訊號。',
 
   dashboard: {
-    hero: '最近記錄與同步狀態一覽。',
+    hero: '觀察自己的日常訊號',
     recentRecords: '僅顯示最近幾筆紀錄，方便快速回顧。',
   },
 

@@ -21,7 +21,7 @@ export function DashboardView({
         <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h2 className="max-w-[12ch] text-[2rem] leading-[1.05] font-semibold tracking-tight sm:max-w-none sm:text-[2.5rem]">
-              觀察自己的日常訊號
+              Nadi
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
               {sectionCopy.dashboard.hero}

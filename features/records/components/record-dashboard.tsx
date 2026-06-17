@@ -1101,7 +1101,7 @@ export function RecordDashboard({
               {selectedItem.valueType === 'boolean' ? (
                 selectedItem.type === 'symptom' ? (
                   <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-3 text-sm text-[var(--foreground)]">
-                    會自動記為「有」。這類症狀只在出現時記一筆，不需要再填「否」。
+                    會自動記為「有」。
                   </div>
                 ) : (
                   <Select
