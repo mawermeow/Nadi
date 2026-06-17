@@ -5,6 +5,11 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Nadi',
   description: 'Observe yourself, not optimize yourself.',
+  icons: {
+    icon: '/logo/nadi-logo-pure.png',
+    shortcut: '/logo/nadi-logo-pure.png',
+    apple: '/logo/nadi-logo-pure.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import type { AppTabItem } from '@/features/records/components/bottom-tab-nav';
 import { AppTabIcon } from '@/components/ui/icons';
 import {
@@ -31,9 +33,26 @@ export function SidebarNav({
   return (
     <aside className="hidden w-72 shrink-0 flex-col overflow-hidden rounded-[2rem] border border-[var(--line)] bg-white/88 p-5 backdrop-blur lg:flex lg:h-full lg:min-h-0">
       <div className="shrink-0">
-        <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
-          Nadi
-        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center">
+            <Image
+              src="/logo/nadi-logo.png"
+              alt="Nadi logo"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-contain"
+              priority
+            />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
+              Nadi
+            </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Observe yourself
+            </p>
+          </div>
+        </div>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">
           {sectionCopy.appHeadline}
         </h1>
