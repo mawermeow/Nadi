@@ -1,0 +1,22 @@
+{
+  "name": "Nadi",
+  "short_name": "Nadi",
+  "description": "A personal life-signal tracking system.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f2e8",
+  "theme_color": "#f7f2e8",
+  "icons": [
+    {
+      "src": "/logo/nadi-logo-pure.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo/nadi-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

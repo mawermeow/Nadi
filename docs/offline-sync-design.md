@@ -228,3 +228,37 @@ Phase 10 補強：
 - pull 會保留 tombstones，避免只同步活資料
 - items / records 核心 UI 已 local-first；reports 仍會走既有 server API
 - PostgreSQL 仍是雲端主資料庫
+
+## PWA App Shell Offline Restart
+
+目前已補上：
+
+- root-scope Service Worker registration：`/sw.js`
+- Workbox precache：`precacheAndRoute(self.__WB_MANIFEST)`
+- navigation fallback：離線 navigation request 會回到已 precache 的 `/offline-shell`
+- `skipWaiting()` + `clientsClaim()`
+- hashed Next.js assets 會在 build 後由 Workbox manifest 注入
+- local-first UI 仍優先從 IndexedDB 載入 items / records，再背景嘗試 sync
+
+### 驗證步驟
+
+1. 執行 `pnpm build` 後再用 `pnpm start` 啟動 production app。
+2. 在線狀態開啟首頁 `/`，等待 App 完整載入一次。
+3. 在 DevTools 的 Application > Service Workers 確認 `/sw.js` 已 `activated`，scope 為 `/`。
+4. 在 Application > Cache Storage 確認 Workbox precache 已建立。
+5. 在 Application > IndexedDB 確認 `nadi-local-db` 內已有既有 items / records。
+6. 完全關閉目前分頁或關閉已安裝的 PWA 視窗。
+7. 將 DevTools Network 切到 `Offline`，或直接斷網。
+8. 重新開啟 `/` 或重新啟動已安裝的 PWA。
+9. 預期結果：
+   - 不會出現白畫面或瀏覽器網路錯誤頁。
+   - 原本的 App Shell 會正常顯示。
+   - items / records 會從 IndexedDB 載入並可讀取。
+   - 若背景 sync / report API 失敗，只會顯示錯誤訊息，不會讓 App crash。
+
+### 目前仍未完整離線支援的資料
+
+- `/v1/reports/summary`
+- `/v1/reports/correlation`
+- auth session refresh / cloud device-link flow
+- 雲端 sync push / pull 本身仍需網路；離線時只保留本機資料與待同步操作

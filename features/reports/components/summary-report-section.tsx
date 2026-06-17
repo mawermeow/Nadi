@@ -79,19 +79,23 @@ export function SummaryReportSection({
     setReportError(null);
 
     startTransition(async () => {
-      const params = new URLSearchParams({
-        from: toRangeIso(filterState.from, 'start'),
-        to: toRangeIso(filterState.to, 'end'),
-      });
-      const response = await fetch(`/v1/reports/summary?${params.toString()}`);
-      const data = await response.json();
+      try {
+        const params = new URLSearchParams({
+          from: toRangeIso(filterState.from, 'start'),
+          to: toRangeIso(filterState.to, 'end'),
+        });
+        const response = await fetch(`/v1/reports/summary?${params.toString()}`);
+        const data = await response.json();
 
-      if (!response.ok) {
-        setReportError(data.error?.message ?? '讀取報表失敗');
-        return;
+        if (!response.ok) {
+          setReportError(data.error?.message ?? '讀取報表失敗');
+          return;
+        }
+
+        setReport(data);
+      } catch {
+        setReportError('目前無法連線更新摘要報表，但 App 仍可離線使用既有資料。');
       }
-
-      setReport(data);
     });
   }
 

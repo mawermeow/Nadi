@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 
+import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
+
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Nadi',
   description: '記錄自己的生活訊號',
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: '/logo/nadi-logo-pure.png',
     shortcut: '/logo/nadi-logo-pure.png',
@@ -31,7 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

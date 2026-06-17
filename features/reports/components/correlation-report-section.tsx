@@ -121,21 +121,25 @@ export function CorrelationReportSection({
     setReportError(null);
 
     startTransition(async () => {
-      const params = new URLSearchParams({
-        symptomItemId: effectiveSymptomItemId,
-        from: toRangeIso(filterState.from, 'start'),
-        to: toRangeIso(filterState.to, 'end'),
-        windowHours: String(filterState.windowHours),
-      });
-      const response = await fetch(`/v1/reports/correlation?${params.toString()}`);
-      const data = await response.json();
+      try {
+        const params = new URLSearchParams({
+          symptomItemId: effectiveSymptomItemId,
+          from: toRangeIso(filterState.from, 'start'),
+          to: toRangeIso(filterState.to, 'end'),
+          windowHours: String(filterState.windowHours),
+        });
+        const response = await fetch(`/v1/reports/correlation?${params.toString()}`);
+        const data = await response.json();
 
-      if (!response.ok) {
-        setReportError(data.error?.message ?? '讀取 correlation 報表失敗');
-        return;
+        if (!response.ok) {
+          setReportError(data.error?.message ?? '讀取 correlation 報表失敗');
+          return;
+        }
+
+        setReport(data);
+      } catch {
+        setReportError('目前無法連線更新關聯報表，但 App 仍可離線使用既有資料。');
       }
-
-      setReport(data);
     });
   }
 
