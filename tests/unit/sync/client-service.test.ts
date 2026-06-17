@@ -83,7 +83,7 @@ vi.mock('@/features/sync/local-operation-repository', () => ({
 }));
 
 vi.mock('@/features/sync/local-user-scope', () => ({
-  assignLegacyLocalDataToUser: vi.fn(),
+  assignAnonymousLocalDataToUser: vi.fn(),
   getActiveLocalDataUserId: vi.fn(),
 }));
 
@@ -111,7 +111,7 @@ import { isNavigatorOnline } from '@/features/sync/network';
 import { getSyncState, resetSyncState } from '@/features/sync/state';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
 import {
-  assignLegacyLocalDataToUser,
+  assignAnonymousLocalDataToUser,
   getActiveLocalDataUserId,
 } from '@/features/sync/local-user-scope';
 import { authClient } from '@/lib/auth/auth-client';
@@ -224,7 +224,7 @@ describe('client sync service', () => {
     vi.mocked(syncOperationRepository.listFailed).mockResolvedValue([]);
     vi.mocked(itemLocalRepository.getAll).mockResolvedValue([]);
     vi.mocked(recordLocalRepository.getAll).mockResolvedValue([]);
-    vi.mocked(assignLegacyLocalDataToUser).mockResolvedValue(undefined);
+    vi.mocked(assignAnonymousLocalDataToUser).mockResolvedValue(undefined);
     vi.mocked(getActiveLocalDataUserId).mockResolvedValue('user-1');
   });
 
@@ -717,6 +717,123 @@ describe('client sync service', () => {
       }),
     );
     expect(setLastPulledAt).toHaveBeenCalledWith('2026-06-16T03:00:00.000Z');
+  });
+
+  it('recovers a failed record create when pull finds the same remote record', async () => {
+    vi.mocked(itemLocalRepository.getById).mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111',
+      userId: 'user-1',
+      title: '睡眠',
+      type: 'metric',
+      unit: '小時',
+      valueType: 'number',
+      scaleMin: null,
+      scaleMax: null,
+      sortOrder: 0,
+      archived: false,
+      syncStatus: 'synced',
+      createdAt: '2026-06-16T00:00:00.000Z',
+      updatedAt: '2026-06-16T00:00:00.000Z',
+      deletedAt: null,
+      version: 1,
+      lastSyncedAt: '2026-06-16T00:00:00.000Z',
+      deviceId: 'device-local',
+    });
+    vi.mocked(recordLocalRepository.getById).mockResolvedValue({
+      id: pendingOperation.entityId,
+      userId: 'user-1',
+      itemId: '11111111-1111-4111-8111-111111111111',
+      valueNumber: 6.5,
+      valueText: null,
+      valueBoolean: null,
+      recordedAt: '2026-06-16T01:00:00.000Z',
+      note: 'local',
+      syncStatus: 'failed',
+      createdAt: '2026-06-16T01:00:00.000Z',
+      updatedAt: '2026-06-16T01:00:00.000Z',
+      deletedAt: null,
+      version: 1,
+      lastSyncedAt: null,
+      deviceId: 'device-local',
+    });
+    vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
+      {
+        ...pendingRecordCreateOperation,
+        entityId: pendingOperation.entityId,
+        status: 'failed',
+        syncStatus: 'failed',
+        lastError: 'PAYLOAD_INVALID: 找不到對應的項目',
+      },
+    ]);
+    vi.mocked(pullSyncChanges).mockResolvedValue({
+      items: [],
+      records: [
+        {
+          id: pendingOperation.entityId,
+          itemId: '11111111-1111-4111-8111-111111111111',
+          valueNumber: 6.5,
+          valueText: null,
+          valueBoolean: null,
+          recordedAt: '2026-06-16T01:00:00.000Z',
+          note: 'remote',
+          version: 2,
+          deletedAt: null,
+          updatedAt: '2026-06-16T03:00:00.000Z',
+          createdAt: '2026-06-16T01:00:00.000Z',
+          lastSyncedAt: '2026-06-16T03:00:00.000Z',
+          deviceId: 'device-remote',
+        },
+      ],
+      tombstones: [],
+      checkpoint: {
+        since: null,
+        until: '2026-06-16T03:00:00.000Z',
+        nextCursor: null,
+        hasMore: false,
+        limit: 100,
+        returnedCount: 1,
+      },
+      deviceSession: {
+        deviceId: 'device-local',
+        lastSeenAt: '2026-06-16T03:00:00.000Z',
+        lastSyncStartedAt: '2026-06-16T03:00:00.000Z',
+        lastSyncCompletedAt: '2026-06-16T03:00:00.000Z',
+        lastPushAt: null,
+        lastPullAt: '2026-06-16T03:00:00.000Z',
+        lastCheckpointAt: '2026-06-16T03:00:00.000Z',
+        lastCheckpointCursor: null,
+        lastSyncStatus: 'synced',
+        lastErrorCode: null,
+        lastErrorAt: null,
+      },
+      diagnostics: {
+        duplicateOperationCount: 0,
+        acceptedOperationCount: 0,
+        rejectedOperationCount: 0,
+        conflictOperationCount: 0,
+        pulledItemCount: 0,
+        pulledRecordCount: 1,
+        pulledTombstoneCount: 0,
+      },
+      serverTime: '2026-06-16T03:00:00.000Z',
+    });
+
+    await pullRemoteChanges();
+
+    expect(syncOperationRepository.markSynced).toHaveBeenCalledWith(
+      pendingRecordCreateOperation.id,
+      {
+        version: 2,
+        lastSyncedAt: '2026-06-16T03:00:00.000Z',
+      },
+    );
+    expect(recordLocalRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: pendingOperation.entityId,
+        syncStatus: 'synced',
+        version: 2,
+      }),
+    );
   });
 
   it('requeues a single failed operation before pushing again', async () => {

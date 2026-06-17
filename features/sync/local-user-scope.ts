@@ -8,28 +8,28 @@ export async function getActiveLocalDataUserId() {
   return linkedAccount?.userId ?? null;
 }
 
-export async function assignLegacyLocalDataToUser(userId: string) {
-  const [legacyItems, legacyRecords, legacyOperations] = await Promise.all([
+export async function assignAnonymousLocalDataToUser(userId: string) {
+  const [anonymousItems, anonymousRecords, anonymousOperations] = await Promise.all([
     itemLocalRepository.getAll({ includeDeleted: true, userId: null }),
     recordLocalRepository.getAll({ includeDeleted: true, userId: null }),
     syncOperationRepository.getAll({ userId: null }),
   ]);
 
-  for (const item of legacyItems) {
+  for (const item of anonymousItems) {
     await itemLocalRepository.upsert({
       ...item,
       userId,
     });
   }
 
-  for (const record of legacyRecords) {
+  for (const record of anonymousRecords) {
     await recordLocalRepository.upsert({
       ...record,
       userId,
     });
   }
 
-  for (const operation of legacyOperations) {
+  for (const operation of anonymousOperations) {
     await syncOperationRepository.upsert({
       ...operation,
       userId,
@@ -44,6 +44,6 @@ export async function reconcileActiveLocalDataOwnership() {
     return null;
   }
 
-  await assignLegacyLocalDataToUser(activeUserId);
+  await assignAnonymousLocalDataToUser(activeUserId);
   return activeUserId;
 }

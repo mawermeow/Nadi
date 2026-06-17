@@ -9,7 +9,8 @@ import {
   setLinkedAccount,
 } from '@/features/sync/meta';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
-import { assignLegacyLocalDataToUser } from '@/features/sync/local-user-scope';
+import { assignAnonymousLocalDataToUser } from '@/features/sync/local-user-scope';
+import { deleteLocalDatabase } from '@/lib/local-db/client';
 
 export type LocalAccountMergeSummary = {
   deviceId: string;
@@ -70,7 +71,7 @@ export async function linkDeviceToAuthenticatedAccount(input: {
     email: input.email,
     linkedAt: data.deviceLink.linkedAt,
   });
-  await assignLegacyLocalDataToUser(input.userId);
+  await assignAnonymousLocalDataToUser(input.userId);
 
   return data as {
     deviceLink: {
@@ -86,4 +87,8 @@ export async function linkDeviceToAuthenticatedAccount(input: {
 
 export async function unlinkLocalAccount() {
   await clearLinkedAccount();
+}
+
+export async function clearLocalDatabaseState() {
+  await deleteLocalDatabase();
 }

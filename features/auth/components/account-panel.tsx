@@ -4,9 +4,10 @@ import { useEffect, useState, useTransition } from 'react';
 
 import { ActionButton } from '@/components/ui/action-button';
 import { TextInput } from '@/components/forms/text-input';
-import { ArrowRightIcon, RefreshIcon, SaveIcon, XIcon } from '@/components/ui/icons';
+import { ArrowRightIcon, RefreshIcon, SaveIcon, TrashIcon, XIcon } from '@/components/ui/icons';
 import { authClient } from '@/lib/auth/auth-client';
 import {
+  clearLocalDatabaseState,
   getLocalAccountMergeSummary,
   linkDeviceToAuthenticatedAccount,
   unlinkLocalAccount,
@@ -130,7 +131,7 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
         await unlinkLocalAccount();
         await refetch();
         await refreshLocalSummary();
-        setNotice('已登出。你的本機資料仍保留在這台裝置。');
+        setNotice('已登出。這台裝置會回到本機未登入狀態，不會再沿用上一個帳號的本地同步資料。');
         resetAuthForm();
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : '登出失敗');
@@ -157,11 +158,32 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
         const summary = await refreshLocalSummary();
         setNotice(
           result.requiresLocalMerge || summary.pendingOperationCount > 0
-            ? '裝置已連結，並已開始把本機資料合併到雲端帳號。'
+            ? '裝置已連結，並已開始把未登入狀態留下的本機資料移交到目前帳號。'
             : '裝置已連結，之後這台裝置的雲端同步會以目前帳號為準。',
         );
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : '裝置連結失敗');
+      }
+    });
+  }
+
+  function handleClearLocalDatabase() {
+    resetMessages();
+
+    if (
+      !window.confirm(
+        '這會清空這台裝置上的本機資料庫與同步狀態，且無法還原。要繼續嗎？',
+      )
+    ) {
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        await clearLocalDatabaseState();
+        window.location.reload();
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : '清空本機資料庫失敗');
       }
     });
   }
@@ -260,6 +282,14 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
               label="登出"
               onClick={handleSignOut}
             />
+            <ActionButton
+              type="button"
+              variant="secondary"
+              icon={<TrashIcon size={18} />}
+              disabled={isWorking || isPending}
+              label="清空本機資料庫"
+              onClick={handleClearLocalDatabase}
+            />
           </div>
         </div>
       ) : (
@@ -341,6 +371,16 @@ export function AccountPanel({ initialSessionUser }: AccountPanelProps) {
             <p className="mt-2">
               你現在仍可建立項目、寫入紀錄與保留離線資料。登入後，Nadi 會以已驗證帳號作為同步身份，再由你決定是否把本機資料合併到雲端。
             </p>
+            <div className="mt-4">
+              <ActionButton
+                type="button"
+                variant="secondary"
+                icon={<TrashIcon size={18} />}
+                disabled={isWorking || isPending}
+                label="清空本機資料庫"
+                onClick={handleClearLocalDatabase}
+              />
+            </div>
           </div>
         </div>
       )}

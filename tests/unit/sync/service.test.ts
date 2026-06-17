@@ -6,6 +6,7 @@ vi.mock('@/features/auth/service', () => ({
 }));
 
 vi.mock('@/features/items/repository', () => ({
+  findItemById: vi.fn(),
   findItemByIdForUser: vi.fn(),
 }));
 
@@ -26,7 +27,7 @@ vi.mock('@/features/sync/repository', () => ({
   updateSyncRecordRecord: vi.fn(),
 }));
 
-import { findItemByIdForUser } from '@/features/items/repository';
+import { findItemById, findItemByIdForUser } from '@/features/items/repository';
 import {
   createSyncItemRecord,
   findSyncDeviceSessionByUserAndDeviceId,
@@ -243,6 +244,37 @@ describe('sync service', () => {
 
     expect(result.accepted).toHaveLength(1);
     expect(result.rejected).toHaveLength(0);
+  });
+
+  it('returns explicit rejection when item belongs to another user', async () => {
+    vi.mocked(findSyncRecordById).mockResolvedValue(null);
+    vi.mocked(findItemByIdForUser).mockResolvedValue(null);
+    vi.mocked(findItemById).mockResolvedValue({
+      ...baseItem,
+      userId: 'other-user',
+    });
+
+    const result = await pushSyncOperationsForUser(user, {
+      deviceId: 'device-a',
+      operations: [
+        {
+          operationId: 'op-record-user-mismatch',
+          entityType: 'record',
+          operationType: 'create',
+          entityId: 'record-user-mismatch',
+          payload: {
+            itemId: baseItem.id,
+            value: 6.5,
+            recordedAt: '2026-06-16T00:00:00.000Z',
+          },
+          clientCreatedAt: '2026-06-16T00:00:00.000Z',
+          clientUpdatedAt: '2026-06-16T00:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0]?.reason).toBe('ITEM_USER_MISMATCH');
   });
 
   it('detects update version conflict', async () => {

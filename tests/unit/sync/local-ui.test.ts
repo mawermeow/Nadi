@@ -24,9 +24,14 @@ vi.mock('@/features/sync/local-user-scope', () => ({
   reconcileActiveLocalDataOwnership: vi.fn(),
 }));
 
+vi.mock('@/features/sync/meta', () => ({
+  getLinkedAccount: vi.fn(),
+}));
+
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import { getLinkedAccount } from '@/features/sync/meta';
 import { reconcileActiveLocalDataOwnership } from '@/features/sync/local-user-scope';
 import {
   getSyncStatusPresentation,
@@ -40,6 +45,7 @@ describe('local ui helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(reconcileActiveLocalDataOwnership).mockResolvedValue(null);
+    vi.mocked(getLinkedAccount).mockResolvedValue(null);
   });
 
   it('hydrates empty local stores from server snapshot', async () => {
@@ -113,6 +119,97 @@ describe('local ui helpers', () => {
     });
 
     expect(itemLocalRepository.upsert).not.toHaveBeenCalled();
+  });
+
+  it('hydrates missing server entities even when local store already has data', async () => {
+    vi.mocked(itemLocalRepository.getAll).mockResolvedValue([
+      {
+        id: 'local-item-1',
+        userId: null,
+        title: '本機睡眠',
+        type: 'metric',
+        unit: '小時',
+        valueType: 'number',
+        scaleMin: null,
+        scaleMax: null,
+        sortOrder: 0,
+        archived: false,
+        syncStatus: 'pending',
+        createdAt: '2026-06-16T00:00:00.000Z',
+        updatedAt: '2026-06-16T00:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+      },
+    ]);
+    vi.mocked(recordLocalRepository.getAll).mockResolvedValue([
+      {
+        id: 'local-record-1',
+        userId: null,
+        itemId: 'local-item-1',
+        valueNumber: 6,
+        valueBoolean: null,
+        valueText: null,
+        recordedAt: '2026-06-16T08:00:00.000Z',
+        note: null,
+        syncStatus: 'pending',
+        createdAt: '2026-06-16T08:00:00.000Z',
+        updatedAt: '2026-06-16T08:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+      },
+    ]);
+    vi.mocked(itemLocalRepository.upsert).mockImplementation(async (value) => value);
+    vi.mocked(recordLocalRepository.upsert).mockImplementation(async (value) => value);
+
+    await hydrateLocalStoreFromServerSnapshot({
+      items: [
+        {
+          id: 'remote-item-1',
+          title: '雲端睡眠',
+          type: 'metric',
+          unit: '小時',
+          valueType: 'number',
+          sortOrder: 1,
+          archived: false,
+          version: 2,
+          createdAt: '2026-06-16T01:00:00.000Z',
+        },
+      ],
+      records: [
+        {
+          id: 'remote-record-1',
+          itemId: 'remote-item-1',
+          itemTitle: '雲端睡眠',
+          itemType: 'metric',
+          valueType: 'number',
+          value: 7,
+          unit: '小時',
+          recordedAt: '2026-06-16T09:00:00.000Z',
+          itemArchived: false,
+          version: 2,
+          createdAt: '2026-06-16T09:00:00.000Z',
+        },
+      ],
+    });
+
+    expect(itemLocalRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'remote-item-1',
+        title: '雲端睡眠',
+        syncStatus: 'synced',
+      }),
+    );
+    expect(recordLocalRepository.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'remote-record-1',
+        itemId: 'remote-item-1',
+        syncStatus: 'synced',
+      }),
+    );
   });
 
   it('loads local items for immediate local-first display', async () => {
@@ -202,6 +299,27 @@ describe('local ui helpers', () => {
   });
 
   it('loads readable failed and conflict sync issues', async () => {
+    vi.mocked(itemLocalRepository.getAll).mockResolvedValue([
+      {
+        id: 'item-ref-1',
+        userId: null,
+        title: '睡眠',
+        type: 'metric',
+        unit: '小時',
+        valueType: 'number',
+        scaleMin: null,
+        scaleMax: null,
+        sortOrder: 0,
+        archived: false,
+        syncStatus: 'failed',
+        createdAt: '2026-06-16T00:00:00.000Z',
+        updatedAt: '2026-06-16T00:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+      },
+    ]);
     vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
       {
         id: 'op-1',
@@ -211,7 +329,9 @@ describe('local ui helpers', () => {
         operationType: 'create',
         entityId: 'record-1',
         baseVersion: null,
-        payload: {},
+        payload: {
+          itemId: 'item-ref-1',
+        },
         status: 'failed',
         syncStatus: 'failed',
         createdAt: '2026-06-16T08:00:00.000Z',
@@ -273,6 +393,11 @@ describe('local ui helpers', () => {
     expect(issues[0]?.displayError).toContain('本機版本與雲端版本不同');
     expect(issues[1]?.title).toBe('紀錄新增');
     expect(issues[1]?.lastError).toContain('ENTITY_NOT_FOUND');
+    expect(issues[1]?.debugDetails).toContain('payload.itemId: item-ref-1');
+    expect(issues[1]?.debugDetails).toContain('linkedAccount.userId: null');
+    expect(issues[1]?.debugDetails).toContain('本機 item.title: 睡眠');
+    expect(issues[1]?.debugDetails).toContain('本機 item.userId: null');
+    expect(issues[1]?.debugDetails).toContain('本機 item.syncStatus: failed');
   });
 
   it('loads only the active user scoped items', async () => {

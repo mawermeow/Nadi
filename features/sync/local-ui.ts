@@ -6,6 +6,7 @@ import { syncOperationRepository } from '@/features/sync/local-operation-reposit
 import {
   reconcileActiveLocalDataOwnership,
 } from '@/features/sync/local-user-scope';
+import { getLinkedAccount } from '@/features/sync/meta';
 import type {
   LocalItem,
   LocalRecord,
@@ -37,6 +38,7 @@ export type SyncOperationIssue = {
   updatedAt: string;
   lastError: string | null;
   displayError: string;
+  debugDetails: string[];
 };
 
 export function getSyncStatusPresentation(
@@ -128,6 +130,10 @@ function getReadableSyncError(
     return '這筆資料在雲端已標記刪除，需要先確認是否要保留本機版本。';
   }
 
+  if (lastError.includes('ITEM_USER_MISMATCH')) {
+    return '這個項目存在於雲端，但不屬於目前登入的帳號，所以這筆紀錄無法寫入。';
+  }
+
   if (lastError.includes('version conflict')) {
     return '本機版本與雲端版本不同，需先確認要保留哪一份變更。';
   }
@@ -135,8 +141,54 @@ function getReadableSyncError(
   return lastError;
 }
 
+function buildSyncIssueDebugDetails(
+  operation: LocalSyncOperation,
+  itemsById: Map<string, LocalItem>,
+  linkedAccountUserId: string | null,
+) {
+  const details: string[] = [];
+
+  details.push(`linkedAccount.userId: ${linkedAccountUserId ?? 'null'}`);
+
+  if (
+    operation.entityType === 'record' &&
+    (operation.operationType === 'create' || operation.operationType === 'update')
+  ) {
+    const payload =
+      operation.payload && typeof operation.payload === 'object'
+        ? (operation.payload as { itemId?: string | null })
+        : null;
+    const referencedItemId = payload?.itemId ?? null;
+
+    if (referencedItemId) {
+      const referencedItem = itemsById.get(referencedItemId) ?? null;
+      details.push(`payload.itemId: ${referencedItemId}`);
+
+      if (referencedItem) {
+        details.push(`本機 item.title: ${referencedItem.title}`);
+        details.push(`本機 item.userId: ${referencedItem.userId ?? 'null'}`);
+        details.push(`本機 item.syncStatus: ${referencedItem.syncStatus}`);
+        details.push(`本機 item.version: ${referencedItem.version}`);
+        details.push(
+          `本機 item.deletedAt: ${referencedItem.deletedAt ?? 'null'}`,
+        );
+      } else {
+        details.push('本機 item: 找不到');
+      }
+    }
+  }
+
+  if (operation.lastError) {
+    details.push(`rawError: ${operation.lastError}`);
+  }
+
+  return details;
+}
+
 function mapSyncOperationIssue(
   operation: LocalSyncOperation,
+  itemsById: Map<string, LocalItem>,
+  linkedAccountUserId: string | null,
 ): SyncOperationIssue | null {
   if (operation.status !== 'failed' && operation.status !== 'conflict') {
     return null;
@@ -153,6 +205,11 @@ function mapSyncOperationIssue(
     updatedAt: operation.updatedAt,
     lastError: operation.lastError,
     displayError: getReadableSyncError(operation, operation.lastError),
+    debugDetails: buildSyncIssueDebugDetails(
+      operation,
+      itemsById,
+      linkedAccountUserId,
+    ),
   };
 }
 
@@ -273,22 +330,30 @@ export async function hydrateLocalStoreFromServerSnapshot(input: {
     }),
   ]);
 
-  if (existingItems.length === 0) {
-    for (const item of input.items) {
-      await itemLocalRepository.upsert({
-        ...toLocalItemFromResponse(item),
-        userId: activeUserId ?? null,
-      });
+  const existingItemIds = new Set(existingItems.map((item) => item.id));
+
+  for (const item of input.items) {
+    if (existingItemIds.has(item.id)) {
+      continue;
     }
+
+    await itemLocalRepository.upsert({
+      ...toLocalItemFromResponse(item),
+      userId: activeUserId ?? null,
+    });
   }
 
-  if (existingRecords.length === 0) {
-    for (const record of input.records) {
-      await recordLocalRepository.upsert({
-        ...toLocalRecordFromResponse(record),
-        userId: activeUserId ?? null,
-      });
+  const existingRecordIds = new Set(existingRecords.map((record) => record.id));
+
+  for (const record of input.records) {
+    if (existingRecordIds.has(record.id)) {
+      continue;
     }
+
+    await recordLocalRepository.upsert({
+      ...toLocalRecordFromResponse(record),
+      userId: activeUserId ?? null,
+    });
   }
 }
 
@@ -378,10 +443,21 @@ export async function loadLocalRecords(query: LocalRecordQuery = {}) {
 
 export async function loadSyncOperationIssues(limit = 8) {
   const activeUserId = await reconcileActiveLocalDataOwnership();
-  const operations = await syncOperationRepository.getAll({ userId: activeUserId });
+  const [operations, items, linkedAccount] = await Promise.all([
+    syncOperationRepository.getAll({ userId: activeUserId }),
+    itemLocalRepository.getAll({ includeDeleted: true, userId: activeUserId }),
+    getLinkedAccount(),
+  ]);
+  const itemsById = new Map(items.map((item) => [item.id, item]));
 
   return operations
-    .map(mapSyncOperationIssue)
+    .map((operation) =>
+      mapSyncOperationIssue(
+        operation,
+        itemsById,
+        linkedAccount?.userId ?? null,
+      ),
+    )
     .filter((value): value is SyncOperationIssue => value !== null)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
     .slice(0, limit);

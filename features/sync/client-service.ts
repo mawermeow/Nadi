@@ -23,7 +23,7 @@ import {
 import { startSyncNetworkMonitor, isNavigatorOnline } from '@/features/sync/network';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
 import {
-  assignLegacyLocalDataToUser,
+  assignAnonymousLocalDataToUser,
   getActiveLocalDataUserId,
 } from '@/features/sync/local-user-scope';
 import { setSyncState } from '@/features/sync/state';
@@ -79,7 +79,7 @@ async function ensureLinkedSyncUser() {
     return null;
   }
 
-  await assignLegacyLocalDataToUser(sessionUser.id);
+  await assignAnonymousLocalDataToUser(sessionUser.id);
   return sessionUser;
 }
 
@@ -198,12 +198,51 @@ async function markEntityConflict(
   await recordLocalRepository.markConflict(entityId, { lastSyncedAt });
 }
 
+async function findRecoverableCreateOperation(
+  entityType: 'item' | 'record',
+  entityId: string,
+  userId: string | null,
+) {
+  const operations = await syncOperationRepository.getAll({ userId });
+  const relatedOperations = operations.filter(
+    (operation) =>
+      operation.entityType === entityType &&
+      operation.entityId === entityId &&
+      operation.status !== 'synced',
+  );
+  const createOperation = relatedOperations.find(
+    (operation) => operation.operationType === 'create',
+  );
+  const hasLaterMutations = relatedOperations.some(
+    (operation) => operation.operationType === 'update' || operation.operationType === 'delete',
+  );
+
+  if (!createOperation || hasLaterMutations) {
+    return null;
+  }
+
+  return createOperation;
+}
+
 async function upsertRemoteItem(item: SyncItemEntity, serverTime: string) {
   const activeUserId = await getActiveLocalDataUserId();
   const local = await itemLocalRepository.getById(item.id);
 
   if (local && local.userId === activeUserId && local.syncStatus !== 'synced') {
-    return;
+    const createRecoveryOperation = await findRecoverableCreateOperation(
+      'item',
+      item.id,
+      activeUserId,
+    );
+
+    if (!createRecoveryOperation) {
+      return;
+    }
+
+    await syncOperationRepository.markSynced(createRecoveryOperation.id, {
+      version: item.version,
+      lastSyncedAt: item.lastSyncedAt ?? serverTime,
+    });
   }
 
   const nextItem: LocalItem = {
@@ -234,7 +273,20 @@ async function upsertRemoteRecord(record: SyncRecordEntity, serverTime: string) 
   const local = await recordLocalRepository.getById(record.id);
 
   if (local && local.userId === activeUserId && local.syncStatus !== 'synced') {
-    return;
+    const createRecoveryOperation = await findRecoverableCreateOperation(
+      'record',
+      record.id,
+      activeUserId,
+    );
+
+    if (!createRecoveryOperation) {
+      return;
+    }
+
+    await syncOperationRepository.markSynced(createRecoveryOperation.id, {
+      version: record.version,
+      lastSyncedAt: record.lastSyncedAt ?? serverTime,
+    });
   }
 
   const nextRecord: LocalRecord = {

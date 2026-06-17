@@ -87,6 +87,26 @@ export async function getLocalDatabase() {
   return databasePromise;
 }
 
+export async function deleteLocalDatabase() {
+  assertBrowserIndexedDb();
+
+  if (databasePromise) {
+    const database = await databasePromise;
+    database.close();
+    databasePromise = null;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(LOCAL_DB_NAME);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () =>
+      reject(request.error ?? new Error('IndexedDB delete failed'));
+    request.onblocked = () =>
+      reject(new Error('IndexedDB delete blocked'));
+  });
+}
+
 export async function getAllFromStore<T>(storeName: LocalStoreName) {
   const database = await getLocalDatabase();
   const transaction = database.transaction(storeName, 'readonly');

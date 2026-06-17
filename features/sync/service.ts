@@ -10,7 +10,7 @@ import {
   ensureSessionUserRecord,
   recordDeviceSeenForUser,
 } from '@/features/auth/service';
-import { findItemByIdForUser } from '@/features/items/repository';
+import { findItemById, findItemByIdForUser } from '@/features/items/repository';
 import type { SessionUser } from '@/lib/auth/session';
 
 import type {
@@ -769,6 +769,33 @@ async function handlePushRecordCreate(
   }
 
   const item = await findItemByIdForUser(payload.itemId, user.id);
+
+  if (!item) {
+    const anyUserItem = await findItemById(payload.itemId);
+
+    if (anyUserItem?.deletedAt) {
+      return {
+        type: 'rejected' as const,
+        rejected: createRejectedOperation(
+          operation,
+          'ENTITY_DELETED',
+          '這個 item 已刪除',
+        ),
+      };
+    }
+
+    if (anyUserItem && anyUserItem.userId !== user.id) {
+      return {
+        type: 'rejected' as const,
+        rejected: createRejectedOperation(
+          operation,
+          'ITEM_USER_MISMATCH',
+          '這個 item 存在，但不屬於目前登入的帳號',
+        ),
+      };
+    }
+  }
+
   let valueFields: {
     valueNumber: number | null;
     valueBoolean: boolean | null;
@@ -857,6 +884,33 @@ async function handlePushRecordUpdate(
 
   const itemId = payload.itemId ?? existingRecord.itemId;
   const item = await findItemByIdForUser(itemId, user.id);
+
+  if (!item) {
+    const anyUserItem = await findItemById(itemId);
+
+    if (anyUserItem?.deletedAt) {
+      return {
+        type: 'rejected' as const,
+        rejected: createRejectedOperation(
+          operation,
+          'ENTITY_DELETED',
+          '這個 item 已刪除',
+        ),
+      };
+    }
+
+    if (anyUserItem && anyUserItem.userId !== user.id) {
+      return {
+        type: 'rejected' as const,
+        rejected: createRejectedOperation(
+          operation,
+          'ITEM_USER_MISMATCH',
+          '這個 item 存在，但不屬於目前登入的帳號',
+        ),
+      };
+    }
+  }
+
   const nextValue =
     payload.value ??
     (existingRecord.valueNumber ??

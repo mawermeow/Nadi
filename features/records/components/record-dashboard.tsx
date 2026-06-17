@@ -756,32 +756,38 @@ export function RecordDashboard({
     let stopForegroundSync: () => void = () => {};
 
     async function initializeLocalFirstUi() {
-      await hydrateSyncTelemetryState();
-      await loadSyncIssues();
-      await hydrateLocalStoreFromServerSnapshot({
-        items: initialItems,
-        records: initialRecords,
-        userId: effectiveSessionUser?.id ?? null,
-      });
-
-      if (!isMounted) {
-        return;
-      }
-
-      await loadLocalData();
-      await loadItemRecordHistoryCounts();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setIsHydratingLocal(false);
-      stopForegroundSync = startForegroundSync();
-
       try {
+        await hydrateSyncTelemetryState();
+        await loadSyncIssues();
+        await hydrateLocalStoreFromServerSnapshot({
+          items: initialItems,
+          records: initialRecords,
+          userId: effectiveSessionUser?.id ?? null,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        await loadLocalData();
+        await loadItemRecordHistoryCounts();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setIsHydratingLocal(false);
+        stopForegroundSync = startForegroundSync();
         await runSync();
-      } catch {
-        // Sync state already captures foreground sync failures.
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsHydratingLocal(false);
+        setTimelineError(
+          error instanceof Error ? error.message : '本機資料初始化失敗',
+        );
       }
     }
 
@@ -2011,6 +2017,15 @@ export function RecordDashboard({
                       <p className="mt-1 text-xs text-[var(--muted)]">
                         最近更新：{formatSyncTimestamp(issue.updatedAt)}
                       </p>
+                      {issue.debugDetails.length > 0 ? (
+                        <div className="mt-3 rounded-2xl bg-stone-50 px-3 py-3 text-xs text-[var(--muted)]">
+                          {issue.debugDetails.map((detail) => (
+                            <p key={detail} className="break-all">
+                              {detail}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
                       {issue.status === 'failed' ? (
                         <div className="mt-3 flex flex-wrap gap-2">
                           <ActionButton
