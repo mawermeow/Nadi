@@ -35,7 +35,7 @@ pnpm dlx serve docs/slides
 
 1. 到 GitHub repo → **Settings** → **Pages**
 2. **Build and deployment** 選 **GitHub Actions**
-3. Push 到 `main` 後，workflow 會部署 `docs/slides/`
-4. 完成後可從 `https://<username>.github.io/<repo>/` 開啟
+3. Push 到 `main` 後，workflow 會部署整個 `docs/`（`docs/index.html` 會導向 `docs/slides/`）
+4. 完成後可從 `https://mawermeow.github.io/Nadi/` 開啟
 
-若你希望 Pages 同時承載其他 `docs/` 內容，可改為手動調整 workflow 的 `path`。
+這樣可以同時承載 slides 與其他文件頁面。
