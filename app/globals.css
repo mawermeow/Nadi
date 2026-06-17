@@ -47,3 +47,15 @@ textarea::placeholder {
   background-size: 1rem;
   padding-right: 2.75rem;
 }
+
+@keyframes record-card-actions-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
