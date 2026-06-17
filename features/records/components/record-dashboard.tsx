@@ -144,12 +144,23 @@ const itemTypeOptions = [
 
 const valueTypeOptions = [
   { value: 'number', label: '數字' },
-  { value: 'boolean', label: '是 / 否' },
+  { value: 'boolean', label: '布林' },
   { value: 'scale', label: '量表' },
   { value: 'text', label: '文字' },
 ] as const;
 
-function getValueTypeLabel(valueType: ItemFormState['valueType']) {
+function getValueTypeLabel(
+  valueType: ItemFormState['valueType'],
+  itemType?: ItemFormState['type'],
+) {
+  if (valueType === 'boolean' && itemType === 'symptom') {
+    return '出現時記一筆';
+  }
+
+  if (valueType === 'boolean') {
+    return '是 / 否';
+  }
+
   return (
     valueTypeOptions.find((option) => option.value === valueType)?.label ??
     valueType
@@ -772,7 +783,10 @@ export function RecordDashboard({
     let value: boolean | number | string = recordFormState.valueText;
 
     if (selectedItem.valueType === 'boolean') {
-      value = recordFormState.valueBoolean === 'true';
+      value =
+        selectedItem.type === 'symptom'
+          ? true
+          : recordFormState.valueBoolean === 'true';
     } else if (
       selectedItem.valueType === 'number' ||
       selectedItem.valueType === 'scale'
@@ -1039,18 +1053,24 @@ export function RecordDashboard({
                   : ''}
               </span>
               {selectedItem.valueType === 'boolean' ? (
-                <Select
-                  value={recordFormState.valueBoolean}
-                  onChange={(event) =>
-                    updateRecordFormValue(
-                      'valueBoolean',
-                      event.target.value as 'true' | 'false',
-                    )
-                  }
-                >
-                  <option value="true">是</option>
-                  <option value="false">否</option>
-                </Select>
+                selectedItem.type === 'symptom' ? (
+                  <div className="rounded-2xl border border-[var(--line)] bg-stone-50 px-4 py-3 text-sm text-[var(--foreground)]">
+                    會自動記為「有」。這類症狀只在出現時記一筆，不需要再填「否」。
+                  </div>
+                ) : (
+                  <Select
+                    value={recordFormState.valueBoolean}
+                    onChange={(event) =>
+                      updateRecordFormValue(
+                        'valueBoolean',
+                        event.target.value as 'true' | 'false',
+                      )
+                    }
+                  >
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                  </Select>
+                )
               ) : (
                 <TextInput
                   inputMode={selectedItem.valueType === 'text' ? 'text' : 'decimal'}
@@ -1214,6 +1234,11 @@ export function RecordDashboard({
               </option>
             ))}
           </Select>
+          {itemFormState.type === 'symptom' && itemFormState.valueType === 'boolean' ? (
+            <p className="text-sm leading-6 text-[var(--muted)]">
+              症狀若使用布林格式，代表「出現時記一筆」。實際記錄時會自動視為有出現。
+            </p>
+          ) : null}
         </label>
 
         <label className="grid gap-2">
@@ -1474,7 +1499,7 @@ export function RecordDashboard({
                       )}
                     </div>
                     <p className="mt-2 text-sm text-[var(--muted)]">
-                      格式：{getValueTypeLabel(item.valueType)}
+                      格式：{getValueTypeLabel(item.valueType, item.type)}
                       {item.unit ? ` / 單位：${item.unit}` : ''}
                       {item.valueType === 'scale' &&
                       item.scaleMin !== undefined &&
@@ -1485,7 +1510,7 @@ export function RecordDashboard({
                     <p className="mt-1 text-xs text-[var(--muted)]">
                       {(itemRecordHistoryCounts[item.id] ?? 0) === 0
                         ? '尚無歷史紀錄，可直接刪除。'
-                        : `已有 ${itemRecordHistoryCounts[item.id] ?? 0} 筆歷史紀錄，建議使用封存保留脈絡。`}
+                        : `已有 ${itemRecordHistoryCounts[item.id] ?? 0} 筆歷史紀錄。`}
                     </p>
                   </div>
                   {editingItemId === item.id ? null : (
@@ -1584,7 +1609,7 @@ export function RecordDashboard({
                       <h3 className="text-base font-semibold">{item.title}</h3>
                     )}
                     <p className="mt-2 text-sm text-[var(--muted)]">
-                      {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType)}
+                      {item.type === 'metric' ? '指標' : '症狀'} / {getValueTypeLabel(item.valueType, item.type)}
                     </p>
                     <p className="mt-1 text-xs text-[var(--muted)]">
                       {(itemRecordHistoryCounts[item.id] ?? 0) === 0

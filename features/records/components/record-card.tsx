@@ -21,6 +21,10 @@ function getItemTypeBadgeClass(type: 'metric' | 'symptom') {
 
 function formatRecordValue(record: RecordResponse) {
   if (record.valueType === 'boolean') {
+    if (record.itemType === 'symptom') {
+      return null;
+    }
+
     return record.value ? '是' : '否';
   }
 
@@ -57,6 +61,7 @@ export function RecordCard({
   const syncStatus = getSyncStatusPresentation(record.syncStatus);
   const showActions = !compact && (onEdit || onDelete);
   const { dateLabel, timeLabel } = formatRecordedAt(record.recordedAt);
+  const formattedValue = formatRecordValue(record);
 
   return (
     <article className="p-3.5 sm:p-4">
@@ -87,14 +92,16 @@ export function RecordCard({
         className={`mt-2 flex items-start gap-3 ${showActions ? 'justify-between' : ''}`}
       >
         <div className="min-w-0 flex-1">
-          <p
-            className={`break-words font-semibold leading-snug text-[var(--foreground)] ${compact ? 'text-base' : 'text-lg'}`}
-          >
-            {formatRecordValue(record)}
-          </p>
+          {formattedValue ? (
+            <p
+              className={`break-words font-semibold leading-snug text-[var(--foreground)] ${compact ? 'text-base' : 'text-lg'}`}
+            >
+              {formattedValue}
+            </p>
+          ) : null}
 
           {record.note ? (
-            <p className="mt-1.5 border-l-2 border-stone-200 pl-2.5 text-sm leading-6 text-[var(--muted)]">
+            <p className={`${formattedValue ? 'mt-1.5' : 'mt-0.5'} border-l-2 border-stone-200 pl-2.5 text-sm leading-6 text-[var(--muted)]`}>
               {record.note}
             </p>
           ) : null}
