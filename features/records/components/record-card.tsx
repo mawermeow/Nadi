@@ -73,13 +73,12 @@ export function RecordCard({
     : 'text-lg font-semibold leading-snug text-[var(--foreground)] sm:text-xl';
 
   const shiftableClassName = [
-    'min-w-0 transition-[padding,opacity,transform] duration-200 ease-out motion-reduce:transition-none',
+    'min-w-0 w-full transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none',
     showActions
       ? actionsRevealed
-        ? 'pr-[9.75rem] opacity-45 sm:pr-[10.75rem]'
-        : 'pr-14 opacity-100'
+        ? 'max-w-[calc(100%-9.75rem)] -translate-x-1 opacity-45 sm:max-w-[calc(100%-10.75rem)]'
+        : 'max-w-full pr-14 opacity-100'
       : '',
-    actionsRevealed ? '-translate-x-0.5' : 'translate-x-0',
   ]
     .filter(Boolean)
     .join(' ');
@@ -93,35 +92,71 @@ export function RecordCard({
   ]
     .filter(Boolean)
     .join(' ');
+  const noteRowClassName = [
+    'mt-2 flex w-full flex-wrap items-end justify-between gap-x-3 gap-y-1.5',
+    'transition-opacity duration-200 ease-out motion-reduce:transition-none',
+    showActions ? 'pr-14' : '',
+    showActions && actionsRevealed ? 'opacity-45' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const revealedValueShiftClassName = [
+    'transition-transform duration-200 ease-out motion-reduce:transition-none',
+    showActions && actionsRevealed
+      ? '-translate-x-[6.5rem] sm:-translate-x-[7.5rem]'
+      : 'translate-x-0',
+  ].join(' ');
 
-  const titleAndBadge = (
+  const metaBadges = (
     <>
-      <h3 className={titleClassName}>{record.itemTitle}</h3>
       <span
         className={`rounded-full px-2 py-0.5 text-xs font-medium ${getItemTypeBadgeClass(record.itemType)}`}
       >
         {record.itemType === 'metric' ? '指標' : '症狀'}
       </span>
+      {record.itemArchived ? (
+        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600">
+          已封存項目
+        </span>
+      ) : null}
+      {syncStatus ? (
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${syncStatus.className}`}
+        >
+          {syncStatus.label}
+        </span>
+      ) : null}
     </>
+  );
+
+  const titleAndBadges = (
+    <>
+      <h3 className={titleClassName}>{record.itemTitle}</h3>
+      {metaBadges}
+    </>
+  );
+
+  const titleRowLayout = (
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <h3 className={titleClassName}>{record.itemTitle}</h3>
+      {metaBadges}
+    </div>
   );
 
   return (
     <article className="relative overflow-hidden p-3.5 sm:p-4">
       {showActions ? (
-        <div className={titleLayerClassName}>{titleAndBadge}</div>
+        <div className={titleLayerClassName}>{titleAndBadges}</div>
       ) : null}
 
       <div className={shiftableClassName}>
         <div className="flex items-start justify-between gap-3">
           {showActions ? (
-            <div
-              className="h-7 min-w-0 flex-1 sm:h-8"
-              aria-hidden
-            />
-          ) : (
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              {titleAndBadge}
+            <div className="invisible min-w-0 flex-1" aria-hidden>
+              {titleRowLayout}
             </div>
+          ) : (
+            titleRowLayout
           )}
 
           <time
@@ -133,24 +168,15 @@ export function RecordCard({
           </time>
         </div>
 
-        {record.itemArchived || syncStatus ? (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {record.itemArchived ? (
-              <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600">
-                已封存項目
-              </span>
-            ) : null}
-            {syncStatus ? (
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${syncStatus.className}`}
-              >
-                {syncStatus.label}
-              </span>
-            ) : null}
-          </div>
+        {showActions && !record.note && formattedValue ? (
+          <p
+            className={`mt-2 ml-auto max-w-full text-right break-words ${valueClassName}`}
+          >
+            {formattedValue}
+          </p>
         ) : null}
 
-        {record.note || formattedValue ? (
+        {!showActions && (record.note || formattedValue) ? (
           <div className="mt-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1.5">
             {record.note ? (
               <p className="min-w-0 max-w-full flex-1 border-l-2 border-stone-200 pl-2.5 text-sm leading-6 break-words text-[var(--muted)]">
@@ -173,6 +199,25 @@ export function RecordCard({
           </div>
         ) : null}
       </div>
+
+      {showActions && record.note ? (
+        <div className={noteRowClassName}>
+          <p className="min-w-0 max-w-full flex-1 border-l-2 border-stone-200 pl-2.5 text-sm leading-6 break-words text-[var(--muted)]">
+            {record.note}
+          </p>
+          {formattedValue ? (
+            <p
+              className={[
+                'max-w-full shrink-0 text-right break-words',
+                valueClassName,
+                revealedValueShiftClassName,
+              ].join(' ')}
+            >
+              {formattedValue}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {showActions ? (
         <div
