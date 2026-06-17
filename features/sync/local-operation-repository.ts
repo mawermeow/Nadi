@@ -9,8 +9,16 @@ import {
 import type { LocalSyncOperation } from '@/lib/local-db/types';
 
 export const syncOperationRepository = {
-  getAll() {
-    return getAllFromStore<LocalSyncOperation>('syncOperations');
+  async getAll(options?: { userId?: string | null }) {
+    const values = await getAllFromStore<LocalSyncOperation>('syncOperations');
+
+    if (options && 'userId' in options) {
+      return values.filter((value) =>
+        options.userId === null ? value.userId == null : value.userId === options.userId,
+      );
+    }
+
+    return values;
   },
   getById(id: string) {
     return getByIdFromStore<LocalSyncOperation>('syncOperations', id);
@@ -31,14 +39,14 @@ export const syncOperationRepository = {
       syncStatus: 'pending',
     }));
   },
-  listPending() {
-    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'pending');
+  listPending(userId?: string | null) {
+    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'pending', userId);
   },
-  listFailed() {
-    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'failed');
+  listFailed(userId?: string | null) {
+    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'failed', userId);
   },
-  listConflicts() {
-    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'conflict');
+  listConflicts(userId?: string | null) {
+    return listBySyncStatus<LocalSyncOperation>('syncOperations', 'conflict', userId);
   },
   markSynced(id: string, input: { version?: number; lastSyncedAt: string }) {
     return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({

@@ -2,6 +2,7 @@ import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import { getOrCreateDeviceId } from '@/features/sync/device';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import { getActiveLocalDataUserId } from '@/features/sync/local-user-scope';
 import type { LocalItem, LocalRecord } from '@/lib/local-db/types';
 
 type CreateLocalItemInput = {
@@ -126,6 +127,7 @@ function mapLocalRecordValue(
 
 async function createPendingOperation(input: {
   deviceId: string;
+  userId: string | null;
   entityType: 'item' | 'record';
   operationType: 'create' | 'update' | 'delete';
   entityId: string;
@@ -137,6 +139,7 @@ async function createPendingOperation(input: {
 
   await syncOperationRepository.upsert({
     id: operationId,
+    userId: input.userId,
     operationId,
     entityType: input.entityType,
     operationType: input.operationType,
@@ -157,10 +160,13 @@ async function createPendingOperation(input: {
 }
 
 async function removeRelatedPendingOperations(input: {
+  userId: string | null;
   entityType: 'item' | 'record';
   entityId: string;
 }) {
-  const operations = await syncOperationRepository.getAll();
+  const operations = await syncOperationRepository.getAll({
+    userId: input.userId,
+  });
   const relatedOperations = operations
     .filter(
       (operation) =>
@@ -177,13 +183,17 @@ async function removeRelatedPendingOperations(input: {
   return relatedOperations;
 }
 
-async function getItemRecordHistoryCount(itemId: string) {
-  const records = await recordLocalRepository.getAll({ includeDeleted: true });
+async function getItemRecordHistoryCount(itemId: string, userId: string | null) {
+  const records = await recordLocalRepository.getAll({
+    includeDeleted: true,
+    userId,
+  });
   return records.filter((record) => record.itemId === itemId).length;
 }
 
 export async function createLocalItem(input: CreateLocalItemInput) {
   const deviceId = await getOrCreateDeviceId();
+  const userId = await getActiveLocalDataUserId();
   const now = new Date().toISOString();
   const id = input.id ?? crypto.randomUUID();
   const scaleMin = input.scaleMin ?? null;
@@ -193,6 +203,7 @@ export async function createLocalItem(input: CreateLocalItemInput) {
 
   const item: LocalItem = {
     id,
+    userId,
     title: input.title,
     type: input.type,
     unit: input.unit ?? null,
@@ -212,6 +223,7 @@ export async function createLocalItem(input: CreateLocalItemInput) {
   await itemLocalRepository.upsert(item);
   await createPendingOperation({
     deviceId,
+    userId,
     entityType: 'item',
     operationType: 'create',
     entityId: id,
@@ -262,6 +274,7 @@ export async function updateLocalItem(input: UpdateLocalItemInput) {
   await itemLocalRepository.upsert(nextItem);
   await createPendingOperation({
     deviceId,
+    userId: existingItem.userId ?? null,
     entityType: 'item',
     operationType: 'update',
     entityId: nextItem.id,
@@ -286,13 +299,17 @@ export async function deleteLocalItem(id: string) {
     throw new Error('找不到這個本機項目');
   }
 
-  const recordHistoryCount = await getItemRecordHistoryCount(id);
+  const recordHistoryCount = await getItemRecordHistoryCount(
+    id,
+    existingItem.userId ?? null,
+  );
 
   if (recordHistoryCount > 0) {
     throw new Error('已有歷史紀錄的項目只能封存，不能直接刪除');
   }
 
   const relatedOperations = await removeRelatedPendingOperations({
+    userId: existingItem.userId ?? null,
     entityType: 'item',
     entityId: id,
   });
@@ -314,6 +331,7 @@ export async function deleteLocalItem(id: string) {
 
   await createPendingOperation({
     deviceId,
+    userId: existingItem.userId ?? null,
     entityType: 'item',
     operationType: 'delete',
     entityId: id,
@@ -339,6 +357,7 @@ export async function createLocalRecord(input: CreateLocalRecordInput) {
 
   const record: LocalRecord = {
     id,
+    userId: item.userId ?? null,
     itemId: input.itemId,
     recordedAt: input.recordedAt,
     note: input.note ?? null,
@@ -355,6 +374,7 @@ export async function createLocalRecord(input: CreateLocalRecordInput) {
   await recordLocalRepository.upsert(record);
   await createPendingOperation({
     deviceId,
+    userId: item.userId ?? null,
     entityType: 'record',
     operationType: 'create',
     entityId: id,
@@ -410,6 +430,7 @@ export async function updateLocalRecord(input: UpdateLocalRecordInput) {
   await recordLocalRepository.upsert(nextRecord);
   await createPendingOperation({
     deviceId,
+    userId: existingRecord.userId ?? null,
     entityType: 'record',
     operationType: 'update',
     entityId: nextRecord.id,
@@ -436,6 +457,7 @@ export async function deleteLocalRecord(id: string) {
   const deviceId = await getOrCreateDeviceId();
   const now = new Date().toISOString();
   const relatedOperations = await removeRelatedPendingOperations({
+    userId: existingRecord.userId ?? null,
     entityType: 'record',
     entityId: id,
   });
@@ -458,6 +480,7 @@ export async function deleteLocalRecord(id: string) {
 
   await createPendingOperation({
     deviceId,
+    userId: existingRecord.userId ?? null,
     entityType: 'record',
     operationType: 'delete',
     entityId: id,

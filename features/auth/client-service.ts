@@ -9,6 +9,7 @@ import {
   setLinkedAccount,
 } from '@/features/sync/meta';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import { assignLegacyLocalDataToUser } from '@/features/sync/local-user-scope';
 
 export type LocalAccountMergeSummary = {
   deviceId: string;
@@ -19,12 +20,13 @@ export type LocalAccountMergeSummary = {
 };
 
 export async function getLocalAccountMergeSummary(): Promise<LocalAccountMergeSummary> {
-  const [deviceId, items, records, operations, linkedAccount] = await Promise.all([
+  const linkedAccount = await getLinkedAccount();
+  const userId = linkedAccount?.userId ?? null;
+  const [deviceId, items, records, operations] = await Promise.all([
     getOrCreateDeviceId(),
-    itemLocalRepository.getAll({ includeDeleted: true }),
-    recordLocalRepository.getAll({ includeDeleted: true }),
-    syncOperationRepository.getAll(),
-    getLinkedAccount(),
+    itemLocalRepository.getAll({ includeDeleted: true, userId }),
+    recordLocalRepository.getAll({ includeDeleted: true, userId }),
+    syncOperationRepository.getAll({ userId }),
   ]);
 
   return {
@@ -68,6 +70,7 @@ export async function linkDeviceToAuthenticatedAccount(input: {
     email: input.email,
     linkedAt: data.deviceLink.linkedAt,
   });
+  await assignLegacyLocalDataToUser(input.userId);
 
   return data as {
     deviceLink: {

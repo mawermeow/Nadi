@@ -22,6 +22,10 @@ vi.mock('@/features/sync/device', () => ({
   getOrCreateDeviceId: vi.fn(),
 }));
 
+vi.mock('@/features/sync/local-user-scope', () => ({
+  getActiveLocalDataUserId: vi.fn(),
+}));
+
 vi.mock('@/features/sync/local-operation-repository', () => ({
   syncOperationRepository: {
     delete: vi.fn(),
@@ -33,6 +37,7 @@ vi.mock('@/features/sync/local-operation-repository', () => ({
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import { getOrCreateDeviceId } from '@/features/sync/device';
+import { getActiveLocalDataUserId } from '@/features/sync/local-user-scope';
 import {
   createLocalItem,
   createLocalRecord,
@@ -46,6 +51,7 @@ describe('local service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getOrCreateDeviceId).mockResolvedValue('device-local');
+    vi.mocked(getActiveLocalDataUserId).mockResolvedValue('user-1');
     vi.mocked(syncOperationRepository.getAll).mockResolvedValue([]);
   });
 

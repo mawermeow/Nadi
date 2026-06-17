@@ -12,6 +12,7 @@ export type LocalEntityBase = {
 };
 
 export type LocalItem = LocalEntityBase & {
+  userId?: string | null;
   title: string;
   type: 'metric' | 'symptom';
   unit: string | null;
@@ -22,6 +23,7 @@ export type LocalItem = LocalEntityBase & {
 };
 
 export type LocalRecord = LocalEntityBase & {
+  userId?: string | null;
   itemId: string;
   valueNumber: number | null;
   valueText: string | null;
@@ -31,6 +33,7 @@ export type LocalRecord = LocalEntityBase & {
 };
 
 export type LocalSyncOperation = LocalEntityBase & {
+  userId?: string | null;
   operationId: string;
   entityType: 'item' | 'record';
   operationType: 'create' | 'update' | 'delete';

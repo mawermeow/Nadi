@@ -67,6 +67,7 @@ import {
   mapLocalRecordToRecordResponse,
   type SyncOperationIssue,
 } from '@/features/sync/local-ui';
+import { getActiveLocalDataUserId } from '@/features/sync/local-user-scope';
 import {
   hydrateSyncTelemetryState,
   retryFailedOperations,
@@ -431,7 +432,11 @@ export function RecordDashboard({
   }, []);
 
   const loadItemRecordHistoryCounts = useCallback(async () => {
-    const localRecords = await recordLocalRepository.getAll({ includeDeleted: true });
+    const activeUserId = await getActiveLocalDataUserId();
+    const localRecords = await recordLocalRepository.getAll({
+      includeDeleted: true,
+      userId: activeUserId,
+    });
     const nextCounts = localRecords.reduce<Record<string, number>>(
       (counts, record) => {
         counts[record.itemId] = (counts[record.itemId] ?? 0) + 1;
@@ -648,6 +653,7 @@ export function RecordDashboard({
       await hydrateLocalStoreFromServerSnapshot({
         items: initialItems,
         records: initialRecords,
+        userId: effectiveSessionUser?.id ?? null,
       });
 
       if (!isMounted) {
@@ -691,6 +697,7 @@ export function RecordDashboard({
       stopForegroundSync();
     };
   }, [
+    effectiveSessionUser?.id,
     initialItems,
     initialRecords,
     loadItemRecordHistoryCounts,

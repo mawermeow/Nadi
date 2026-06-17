@@ -22,6 +22,10 @@ import {
 } from '@/features/sync/meta';
 import { startSyncNetworkMonitor, isNavigatorOnline } from '@/features/sync/network';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import {
+  assignLegacyLocalDataToUser,
+  getActiveLocalDataUserId,
+} from '@/features/sync/local-user-scope';
 import { setSyncState } from '@/features/sync/state';
 import type {
   SyncConflict,
@@ -75,11 +79,13 @@ async function ensureLinkedSyncUser() {
     return null;
   }
 
+  await assignLegacyLocalDataToUser(sessionUser.id);
   return sessionUser;
 }
 
 async function refreshSyncCounts() {
-  const operations = await syncOperationRepository.getAll();
+  const activeUserId = await getActiveLocalDataUserId();
+  const operations = await syncOperationRepository.getAll({ userId: activeUserId });
   const pendingCount = operations.filter((operation) => operation.status === 'pending').length;
   const failedCount = operations.filter((operation) => operation.status === 'failed').length;
   const conflictCount = operations.filter((operation) => operation.status === 'conflict').length;
@@ -193,14 +199,16 @@ async function markEntityConflict(
 }
 
 async function upsertRemoteItem(item: SyncItemEntity, serverTime: string) {
+  const activeUserId = await getActiveLocalDataUserId();
   const local = await itemLocalRepository.getById(item.id);
 
-  if (local && local.syncStatus !== 'synced') {
+  if (local && local.userId === activeUserId && local.syncStatus !== 'synced') {
     return;
   }
 
   const nextItem: LocalItem = {
     id: item.id,
+    userId: activeUserId,
     title: item.title,
     type: item.type,
     unit: item.unit,
@@ -221,14 +229,16 @@ async function upsertRemoteItem(item: SyncItemEntity, serverTime: string) {
 }
 
 async function upsertRemoteRecord(record: SyncRecordEntity, serverTime: string) {
+  const activeUserId = await getActiveLocalDataUserId();
   const local = await recordLocalRepository.getById(record.id);
 
-  if (local && local.syncStatus !== 'synced') {
+  if (local && local.userId === activeUserId && local.syncStatus !== 'synced') {
     return;
   }
 
   const nextRecord: LocalRecord = {
     id: record.id,
+    userId: activeUserId,
     itemId: record.itemId,
     valueNumber: record.valueNumber,
     valueText: record.valueText,
@@ -248,10 +258,12 @@ async function upsertRemoteRecord(record: SyncRecordEntity, serverTime: string) 
 }
 
 async function applyTombstone(tombstone: SyncTombstone, serverTime: string) {
+  const activeUserId = await getActiveLocalDataUserId();
+
   if (tombstone.entityType === 'item') {
     const local = await itemLocalRepository.getById(tombstone.entityId);
 
-    if (!local || local.syncStatus !== 'synced') {
+    if (!local || local.userId !== activeUserId || local.syncStatus !== 'synced') {
       return;
     }
 
@@ -268,7 +280,7 @@ async function applyTombstone(tombstone: SyncTombstone, serverTime: string) {
 
   const local = await recordLocalRepository.getById(tombstone.entityId);
 
-  if (!local || local.syncStatus !== 'synced') {
+  if (!local || local.userId !== activeUserId || local.syncStatus !== 'synced') {
     return;
   }
 
@@ -443,7 +455,8 @@ export async function pushPendingOperations() {
   }
 
   const deviceId = await getOrCreateDeviceId();
-  const allOperations = await syncOperationRepository.getAll();
+  const activeUserId = await getActiveLocalDataUserId();
+  const allOperations = await syncOperationRepository.getAll({ userId: activeUserId });
   const candidateOperations = sortOperationsForPush(
     allOperations.filter(
       (operation) =>
@@ -605,7 +618,8 @@ export async function pullRemoteChanges() {
 }
 
 export async function retryFailedOperations() {
-  const failedOperations = await syncOperationRepository.listFailed();
+  const activeUserId = await getActiveLocalDataUserId();
+  const failedOperations = await syncOperationRepository.listFailed(activeUserId);
 
   for (const operation of failedOperations) {
     await syncOperationRepository.requeue(operation.id);

@@ -8,14 +8,20 @@ import {
 import type { LocalRecord } from '@/lib/local-db/types';
 
 export const recordLocalRepository = {
-  async getAll(options?: { includeDeleted?: boolean }) {
+  async getAll(options?: { includeDeleted?: boolean; userId?: string | null }) {
     const values = await getAllFromStore<LocalRecord>('records');
+    const scopedValues =
+      options && 'userId' in options
+        ? values.filter((value) =>
+            options.userId === null ? value.userId == null : value.userId === options.userId,
+          )
+        : values;
 
     if (options?.includeDeleted) {
-      return values;
+      return scopedValues;
     }
 
-    return values.filter((value) => value.deletedAt === null);
+    return scopedValues.filter((value) => value.deletedAt === null);
   },
   getById(id: string) {
     return getByIdFromStore<LocalRecord>('records', id);
@@ -32,8 +38,8 @@ export const recordLocalRepository = {
       syncStatus: 'pending',
     }));
   },
-  listPending() {
-    return listBySyncStatus<LocalRecord>('records', 'pending');
+  listPending(userId?: string | null) {
+    return listBySyncStatus<LocalRecord>('records', 'pending', userId);
   },
   markSynced(id: string, input: { version?: number; lastSyncedAt: string }) {
     return updateStoreEntity<LocalRecord>('records', id, (current) => ({

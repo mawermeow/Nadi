@@ -20,9 +20,14 @@ vi.mock('@/features/sync/local-operation-repository', () => ({
   },
 }));
 
+vi.mock('@/features/sync/local-user-scope', () => ({
+  reconcileActiveLocalDataOwnership: vi.fn(),
+}));
+
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import { reconcileActiveLocalDataOwnership } from '@/features/sync/local-user-scope';
 import {
   getSyncStatusPresentation,
   hydrateLocalStoreFromServerSnapshot,
@@ -34,6 +39,7 @@ import {
 describe('local ui helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(reconcileActiveLocalDataOwnership).mockResolvedValue(null);
   });
 
   it('hydrates empty local stores from server snapshot', async () => {
@@ -80,6 +86,7 @@ describe('local ui helpers', () => {
     vi.mocked(itemLocalRepository.getAll).mockResolvedValue([
       {
         id: '11111111-1111-4111-8111-111111111111',
+        userId: null,
         title: '睡眠',
         type: 'metric',
         unit: '小時',
@@ -110,6 +117,7 @@ describe('local ui helpers', () => {
     vi.mocked(itemLocalRepository.getAll).mockResolvedValue([
       {
         id: '11111111-1111-4111-8111-111111111111',
+        userId: null,
         title: '睡眠',
         type: 'metric',
         unit: '小時',
@@ -138,6 +146,7 @@ describe('local ui helpers', () => {
     vi.mocked(itemLocalRepository.getAll).mockResolvedValue([
       {
         id: '11111111-1111-4111-8111-111111111111',
+        userId: null,
         title: '睡眠',
         type: 'metric',
         unit: '小時',
@@ -157,6 +166,7 @@ describe('local ui helpers', () => {
     vi.mocked(recordLocalRepository.getAll).mockResolvedValue([
       {
         id: '11111111-1111-4111-8111-111111111118',
+        userId: null,
         itemId: '11111111-1111-4111-8111-111111111111',
         valueNumber: 6.5,
         valueBoolean: null,
@@ -191,6 +201,7 @@ describe('local ui helpers', () => {
     vi.mocked(syncOperationRepository.getAll).mockResolvedValue([
       {
         id: 'op-1',
+        userId: null,
         operationId: 'op-1',
         entityType: 'record',
         operationType: 'create',
@@ -210,6 +221,7 @@ describe('local ui helpers', () => {
       },
       {
         id: 'op-2',
+        userId: null,
         operationId: 'op-2',
         entityType: 'item',
         operationType: 'update',
@@ -229,6 +241,7 @@ describe('local ui helpers', () => {
       },
       {
         id: 'op-3',
+        userId: null,
         operationId: 'op-3',
         entityType: 'item',
         operationType: 'create',
@@ -256,5 +269,36 @@ describe('local ui helpers', () => {
     expect(issues[0]?.displayError).toContain('本機版本與雲端版本不同');
     expect(issues[1]?.title).toBe('紀錄新增');
     expect(issues[1]?.lastError).toContain('ENTITY_NOT_FOUND');
+  });
+
+  it('loads only the active user scoped items', async () => {
+    vi.mocked(reconcileActiveLocalDataOwnership).mockResolvedValue('user-1');
+    vi.mocked(itemLocalRepository.getAll).mockResolvedValue([
+      {
+        id: 'item-user-1',
+        userId: 'user-1',
+        title: '睡眠',
+        type: 'metric',
+        unit: '小時',
+        valueType: 'number',
+        scaleMin: null,
+        scaleMax: null,
+        archived: false,
+        syncStatus: 'synced',
+        createdAt: '2026-06-16T00:00:00.000Z',
+        updatedAt: '2026-06-16T00:00:00.000Z',
+        deletedAt: null,
+        version: 1,
+        lastSyncedAt: null,
+        deviceId: 'device-local',
+      },
+    ]);
+
+    await loadLocalItems();
+
+    expect(itemLocalRepository.getAll).toHaveBeenCalledWith({
+      includeDeleted: true,
+      userId: 'user-1',
+    });
   });
 });

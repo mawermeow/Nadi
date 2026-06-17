@@ -143,10 +143,18 @@ export async function updateStoreEntity<
   return nextValue;
 }
 
-export async function listBySyncStatus<T extends { syncStatus: SyncStatus }>(
+export async function listBySyncStatus<
+  T extends { syncStatus: SyncStatus; userId?: string | null },
+>(
   storeName: LocalStoreName,
   syncStatus: SyncStatus,
+  userId?: string | null,
 ) {
   const values = await getAllFromStore<T>(storeName);
-  return values.filter((value) => value.syncStatus === syncStatus);
+  return values.filter(
+    (value) =>
+      value.syncStatus === syncStatus &&
+      (userId === undefined ||
+        (userId === null ? value.userId == null : value.userId === userId)),
+  );
 }

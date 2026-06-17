@@ -9,14 +9,20 @@ import {
 import type { LocalItem } from '@/lib/local-db/types';
 
 export const itemLocalRepository = {
-  async getAll(options?: { includeDeleted?: boolean }) {
+  async getAll(options?: { includeDeleted?: boolean; userId?: string | null }) {
     const values = await getAllFromStore<LocalItem>('items');
+    const scopedValues =
+      options && 'userId' in options
+        ? values.filter((value) =>
+            options.userId === null ? value.userId == null : value.userId === options.userId,
+          )
+        : values;
 
     if (options?.includeDeleted) {
-      return values;
+      return scopedValues;
     }
 
-    return values.filter((value) => value.deletedAt === null);
+    return scopedValues.filter((value) => value.deletedAt === null);
   },
   getById(id: string) {
     return getByIdFromStore<LocalItem>('items', id);
@@ -36,8 +42,8 @@ export const itemLocalRepository = {
       syncStatus: 'pending',
     }));
   },
-  listPending() {
-    return listBySyncStatus<LocalItem>('items', 'pending');
+  listPending(userId?: string | null) {
+    return listBySyncStatus<LocalItem>('items', 'pending', userId);
   },
   markSynced(id: string, input: { version?: number; lastSyncedAt: string }) {
     return updateStoreEntity<LocalItem>('items', id, (current) => ({

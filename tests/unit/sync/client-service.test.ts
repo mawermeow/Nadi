@@ -81,6 +81,11 @@ vi.mock('@/features/sync/local-operation-repository', () => ({
   },
 }));
 
+vi.mock('@/features/sync/local-user-scope', () => ({
+  assignLegacyLocalDataToUser: vi.fn(),
+  getActiveLocalDataUserId: vi.fn(),
+}));
+
 import { itemLocalRepository } from '@/features/items/local-repository';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import { pullSyncChanges, pushSyncOperations, SyncClientError } from '@/features/sync/client';
@@ -103,10 +108,15 @@ import {
 import { isNavigatorOnline } from '@/features/sync/network';
 import { getSyncState, resetSyncState } from '@/features/sync/state';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import {
+  assignLegacyLocalDataToUser,
+  getActiveLocalDataUserId,
+} from '@/features/sync/local-user-scope';
 import { authClient } from '@/lib/auth/auth-client';
 
 const pendingOperation = {
   id: 'op-1',
+  userId: 'user-1',
   operationId: 'op-1',
   entityType: 'record' as const,
   operationType: 'update' as const,
@@ -129,6 +139,7 @@ const pendingOperation = {
 
 const pendingItemCreateOperation = {
   id: 'op-item-create',
+  userId: 'user-1',
   operationId: 'op-item-create',
   entityType: 'item' as const,
   operationType: 'create' as const,
@@ -154,6 +165,7 @@ const pendingItemCreateOperation = {
 
 const pendingRecordCreateOperation = {
   id: 'op-record-create',
+  userId: 'user-1',
   operationId: 'op-record-create',
   entityType: 'record' as const,
   operationType: 'create' as const,
@@ -210,6 +222,8 @@ describe('client sync service', () => {
     vi.mocked(syncOperationRepository.listFailed).mockResolvedValue([]);
     vi.mocked(itemLocalRepository.getAll).mockResolvedValue([]);
     vi.mocked(recordLocalRepository.getAll).mockResolvedValue([]);
+    vi.mocked(assignLegacyLocalDataToUser).mockResolvedValue(undefined);
+    vi.mocked(getActiveLocalDataUserId).mockResolvedValue('user-1');
   });
 
   it('pushes pending operations and marks them synced on success', async () => {
@@ -364,6 +378,7 @@ describe('client sync service', () => {
     });
     vi.mocked(itemLocalRepository.getById).mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111',
+      userId: 'user-1',
       title: '睡眠',
       type: 'metric',
       unit: '小時',
@@ -399,6 +414,7 @@ describe('client sync service', () => {
     ]);
     vi.mocked(itemLocalRepository.getById).mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111',
+      userId: 'user-1',
       title: '睡眠',
       type: 'metric',
       unit: '小時',
@@ -647,6 +663,7 @@ describe('client sync service', () => {
   it('applies pull tombstones as local soft delete', async () => {
     vi.mocked(itemLocalRepository.getById).mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111',
+      userId: 'user-1',
       title: '睡眠',
       type: 'metric',
       unit: '小時',
@@ -831,6 +848,7 @@ describe('client sync service', () => {
   it('does not apply remote tombstone over pending local change', async () => {
     vi.mocked(recordLocalRepository.getById).mockResolvedValue({
       id: pendingOperation.entityId,
+      userId: 'user-1',
       itemId: '11111111-1111-4111-8111-111111111111',
       valueNumber: 6.5,
       valueText: null,

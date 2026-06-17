@@ -3,6 +3,9 @@ import { itemLocalRepository } from '@/features/items/local-repository';
 import type { RecordResponse } from '@/features/records/api';
 import { recordLocalRepository } from '@/features/records/local-repository';
 import { syncOperationRepository } from '@/features/sync/local-operation-repository';
+import {
+  reconcileActiveLocalDataOwnership,
+} from '@/features/sync/local-user-scope';
 import type {
   LocalItem,
   LocalRecord,
@@ -188,6 +191,7 @@ export function mapLocalRecordToRecordResponse(
 function toLocalItemFromResponse(item: ItemResponse): LocalItem {
   return {
     id: item.id,
+    userId: null,
     title: item.title,
     type: item.type,
     unit: item.unit ?? null,
@@ -232,6 +236,7 @@ function inferLocalRecordValueFields(record: RecordResponse) {
 function toLocalRecordFromResponse(record: RecordResponse): LocalRecord {
   return {
     id: record.id,
+    userId: null,
     itemId: record.itemId,
     ...inferLocalRecordValueFields(record),
     recordedAt: record.recordedAt,
@@ -249,27 +254,48 @@ function toLocalRecordFromResponse(record: RecordResponse): LocalRecord {
 export async function hydrateLocalStoreFromServerSnapshot(input: {
   items: ItemResponse[];
   records: RecordResponse[];
+  userId?: string | null;
 }) {
+  const activeUserId =
+    input.userId === undefined
+      ? await reconcileActiveLocalDataOwnership()
+      : input.userId;
   const [existingItems, existingRecords] = await Promise.all([
-    itemLocalRepository.getAll({ includeDeleted: true }),
-    recordLocalRepository.getAll({ includeDeleted: true }),
+    itemLocalRepository.getAll({
+      includeDeleted: true,
+      userId: activeUserId,
+    }),
+    recordLocalRepository.getAll({
+      includeDeleted: true,
+      userId: activeUserId,
+    }),
   ]);
 
   if (existingItems.length === 0) {
     for (const item of input.items) {
-      await itemLocalRepository.upsert(toLocalItemFromResponse(item));
+      await itemLocalRepository.upsert({
+        ...toLocalItemFromResponse(item),
+        userId: activeUserId ?? null,
+      });
     }
   }
 
   if (existingRecords.length === 0) {
     for (const record of input.records) {
-      await recordLocalRepository.upsert(toLocalRecordFromResponse(record));
+      await recordLocalRepository.upsert({
+        ...toLocalRecordFromResponse(record),
+        userId: activeUserId ?? null,
+      });
     }
   }
 }
 
 export async function loadLocalItems() {
-  const items = await itemLocalRepository.getAll({ includeDeleted: true });
+  const activeUserId = await reconcileActiveLocalDataOwnership();
+  const items = await itemLocalRepository.getAll({
+    includeDeleted: true,
+    userId: activeUserId,
+  });
   return items
     .filter((item) => item.deletedAt === null)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
@@ -277,9 +303,10 @@ export async function loadLocalItems() {
 }
 
 export async function loadLocalRecords(query: LocalRecordQuery = {}) {
+  const activeUserId = await reconcileActiveLocalDataOwnership();
   const [items, records] = await Promise.all([
-    itemLocalRepository.getAll({ includeDeleted: true }),
-    recordLocalRepository.getAll({ includeDeleted: true }),
+    itemLocalRepository.getAll({ includeDeleted: true, userId: activeUserId }),
+    recordLocalRepository.getAll({ includeDeleted: true, userId: activeUserId }),
   ]);
   const itemMap = new Map(items.map((item) => [item.id, item]));
 
@@ -334,7 +361,8 @@ export async function loadLocalRecords(query: LocalRecordQuery = {}) {
 }
 
 export async function loadSyncOperationIssues(limit = 8) {
-  const operations = await syncOperationRepository.getAll();
+  const activeUserId = await reconcileActiveLocalDataOwnership();
+  const operations = await syncOperationRepository.getAll({ userId: activeUserId });
 
   return operations
     .map(mapSyncOperationIssue)
