@@ -29,7 +29,7 @@ export function AppShell({
   onTabChange,
 }: AppShellProps) {
   return (
-    <main className="min-h-screen max-w-full overflow-x-clip [--mobile-bottom-nav-height:6.25rem] px-3 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+var(--mobile-bottom-nav-height))] sm:px-5 sm:pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:pb-8 lg:h-screen lg:overflow-hidden lg:px-6 lg:pt-8 lg:pb-6">
+    <main className="min-h-screen max-w-full overflow-x-clip [--mobile-bottom-nav-height:5.25rem] px-3 pt-[calc(env(safe-area-inset-top)+1rem)] pb-[calc(env(safe-area-inset-bottom)+var(--mobile-bottom-nav-height))] sm:px-5 sm:pt-[calc(env(safe-area-inset-top)+1.5rem)] sm:pb-8 lg:h-screen lg:overflow-hidden lg:px-6 lg:pt-8 lg:pb-6">
       <div className="mx-auto flex w-full max-w-7xl gap-6 lg:h-full lg:min-h-0 lg:items-stretch">
         <SidebarNav
           activeTab={activeTab}
