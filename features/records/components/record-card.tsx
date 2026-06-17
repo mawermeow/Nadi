@@ -72,40 +72,13 @@ export function RecordCard({
     ? 'text-base font-semibold leading-snug text-[var(--foreground)] sm:text-lg'
     : 'text-lg font-semibold leading-snug text-[var(--foreground)] sm:text-xl';
 
-  const shiftableClassName = [
-    'min-w-0 w-full transition-[max-width,opacity,transform] duration-200 ease-out motion-reduce:transition-none',
-    showActions
-      ? actionsRevealed
-        ? 'max-w-[calc(100%-9.75rem)] -translate-x-1 opacity-45 sm:max-w-[calc(100%-10.75rem)]'
-        : 'max-w-full pr-14 opacity-100'
-      : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const titleLayerClassName = [
-    'flex max-w-[calc(100%-10rem)] flex-wrap items-center gap-2',
-    'transition-opacity duration-200 ease-out motion-reduce:transition-none',
-    showActions
-      ? 'pointer-events-none absolute top-3.5 left-3.5 z-10 sm:top-4 sm:left-4'
-      : '',
+  const contentClassName = [
+    'min-w-0 transition-opacity duration-200 ease-out motion-reduce:transition-none',
+    showActions ? 'pr-18' : '',
     showActions && actionsRevealed ? 'opacity-45' : 'opacity-100',
   ]
     .filter(Boolean)
     .join(' ');
-  const noteRowClassName = [
-    'mt-2 flex w-full flex-wrap items-end justify-between gap-x-3 gap-y-1.5',
-    'transition-opacity duration-200 ease-out motion-reduce:transition-none',
-    showActions ? 'pr-14' : '',
-    showActions && actionsRevealed ? 'opacity-45' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const revealedValueShiftClassName = [
-    'transition-transform duration-200 ease-out motion-reduce:transition-none',
-    showActions && actionsRevealed
-      ? '-translate-x-[6.5rem] sm:-translate-x-[7.5rem]'
-      : 'translate-x-0',
-  ].join(' ');
 
   const metaBadges = (
     <>
@@ -129,35 +102,14 @@ export function RecordCard({
     </>
   );
 
-  const titleAndBadges = (
-    <>
-      <h3 className={titleClassName}>{record.itemTitle}</h3>
-      {metaBadges}
-    </>
-  );
-
-  const titleRowLayout = (
-    <div className="flex min-w-0 flex-wrap items-center gap-2">
-      <h3 className={titleClassName}>{record.itemTitle}</h3>
-      {metaBadges}
-    </div>
-  );
-
   return (
     <article className="relative overflow-hidden p-3.5 sm:p-4">
-      {showActions ? (
-        <div className={titleLayerClassName}>{titleAndBadges}</div>
-      ) : null}
-
-      <div className={shiftableClassName}>
+      <div className={contentClassName}>
         <div className="flex items-start justify-between gap-3">
-          {showActions ? (
-            <div className="invisible min-w-0 flex-1" aria-hidden>
-              {titleRowLayout}
-            </div>
-          ) : (
-            titleRowLayout
-          )}
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h3 className={titleClassName}>{record.itemTitle}</h3>
+            {metaBadges}
+          </div>
 
           <time
             dateTime={record.recordedAt}
@@ -168,15 +120,7 @@ export function RecordCard({
           </time>
         </div>
 
-        {showActions && !record.note && formattedValue ? (
-          <p
-            className={`mt-2 ml-auto max-w-full text-right break-words ${valueClassName}`}
-          >
-            {formattedValue}
-          </p>
-        ) : null}
-
-        {!showActions && (record.note || formattedValue) ? (
+        {record.note || formattedValue ? (
           <div className="mt-2 flex flex-wrap items-end justify-between gap-x-3 gap-y-1.5">
             {record.note ? (
               <p className="min-w-0 max-w-full flex-1 border-l-2 border-stone-200 pl-2.5 text-sm leading-6 break-words text-[var(--muted)]">
@@ -200,33 +144,21 @@ export function RecordCard({
         ) : null}
       </div>
 
-      {showActions && record.note ? (
-        <div className={noteRowClassName}>
-          <p className="min-w-0 max-w-full flex-1 border-l-2 border-stone-200 pl-2.5 text-sm leading-6 break-words text-[var(--muted)]">
-            {record.note}
-          </p>
-          {formattedValue ? (
-            <p
-              className={[
-                'max-w-full shrink-0 text-right break-words',
-                valueClassName,
-                revealedValueShiftClassName,
-              ].join(' ')}
-            >
-              {formattedValue}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
       {showActions ? (
         <div
           aria-hidden
           className={[
-            'pointer-events-none absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-white from-35% via-white/90 to-transparent sm:w-44',
+            'pointer-events-none absolute top-3.5 right-18 bottom-3.5 z-10 w-px bg-[var(--line)] sm:top-4 sm:bottom-4',
             'transition-opacity duration-200 ease-out motion-reduce:transition-none',
-            actionsRevealed ? 'opacity-100' : 'opacity-0',
+            actionsRevealed ? 'opacity-45' : 'opacity-100',
           ].join(' ')}
+        />
+      ) : null}
+
+      {showActions && actionsRevealed ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-52 bg-gradient-to-l from-white from-65% via-white/95 to-transparent motion-safe:animate-[record-card-actions-in_200ms_ease-out] sm:w-60"
         />
       ) : null}
 
@@ -240,7 +172,7 @@ export function RecordCard({
               className={[
                 'flex items-center gap-1.5 transition-opacity duration-200 ease-out motion-reduce:transition-none',
                 actionsRevealed
-                  ? 'opacity-100'
+                  ? 'motion-safe:animate-[record-card-actions-in_200ms_ease-out] opacity-100'
                   : 'pointer-events-none absolute top-0 right-0 opacity-0',
               ].join(' ')}
             >
