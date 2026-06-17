@@ -112,7 +112,7 @@ type RecordFormState = {
 };
 
 type FilterState = {
-  itemType: 'metric' | 'symptom';
+  itemType: 'metric' | 'symptom' | 'both';
   itemId: string;
   from: string;
   to: string;
@@ -173,7 +173,7 @@ function getValueTypeLabel(
 }
 
 function getItemTypeTabClass(
-  currentValue: 'metric' | 'symptom',
+  currentValue: 'metric' | 'symptom' | 'both',
   optionValue: 'metric' | 'symptom',
 ) {
   if (currentValue !== optionValue) {
@@ -275,6 +275,7 @@ export function RecordDashboard({
   const { data: authSession } = authClient.useSession();
   const initialRecordItemType =
     initialItems.find((item) => !item.archived)?.type ?? 'metric';
+  const initialTimelineItemType = 'both' as const;
   const [activeTab, setActiveTab] = useState<(typeof appTabs)[number]['id']>(
     'dashboard',
   );
@@ -293,7 +294,7 @@ export function RecordDashboard({
   });
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [filterState, setFilterState] = useState<FilterState>({
-    itemType: initialRecordItemType,
+    itemType: initialTimelineItemType,
     itemId: '',
     from: '',
     to: '',
@@ -338,7 +339,10 @@ export function RecordDashboard({
     [items],
   );
   const timelineSelectableItems = useMemo(
-    () => items.filter((item) => item.type === filterState.itemType),
+    () =>
+      filterState.itemType === 'both'
+        ? items
+        : items.filter((item) => item.type === filterState.itemType),
     [filterState.itemType, items],
   );
   const selectedItem = useMemo(
@@ -708,10 +712,10 @@ export function RecordDashboard({
     }));
   }
 
-  function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom') {
+function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
     setFilterState((currentState) => ({
       ...currentState,
-      itemType: nextType,
+      itemType: currentState.itemType === nextType ? 'both' : nextType,
       itemId: '',
     }));
   }
@@ -1441,7 +1445,9 @@ export function RecordDashboard({
             onChange={(event) => updateFilterValue('itemId', event.target.value)}
           >
             <option value="">
-              全部{filterState.itemType === 'metric' ? '指標' : '症狀'}
+              {filterState.itemType === 'both'
+                ? '全部項目'
+                : `全部${filterState.itemType === 'metric' ? '指標' : '症狀'}`}
             </option>
             {timelineSelectableItems.map((item) => (
               <option key={item.id} value={item.id}>
@@ -1492,7 +1498,7 @@ export function RecordDashboard({
           label="回到近期列表"
           onClick={() => {
             setFilterState({
-              itemType: initialRecordItemType,
+              itemType: initialTimelineItemType,
               itemId: '',
               from: '',
               to: '',

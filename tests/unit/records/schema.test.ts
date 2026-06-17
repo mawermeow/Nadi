@@ -26,6 +26,14 @@ describe('createRecordSchema', () => {
 });
 
 describe('listRecordsQuerySchema', () => {
+  it('accepts both as itemType', () => {
+    const result = listRecordsQuerySchema.safeParse({
+      itemType: 'both',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
   it('requires from and to together', () => {
     const result = listRecordsQuerySchema.safeParse({
       from: '2026-06-15T00:00:00.000Z',

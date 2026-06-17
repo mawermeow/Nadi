@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 import {
   itemIdParamSchema,
-  itemTypeSchema,
   itemValueTypeSchema,
 } from '@/features/items/schema';
 
@@ -19,6 +18,7 @@ const isoDateStringSchema = z
   .datetime({ offset: true, message: '請提供有效的日期時間' });
 
 export const recordIdParamSchema = z.uuid('無效的 recordId');
+export const recordQueryItemTypeSchema = z.enum(['metric', 'symptom', 'both']);
 
 export const recordValueSchema = z.union([
   z.number(),
@@ -56,7 +56,7 @@ export const updateRecordSchema = z
 export const listRecordsQuerySchema = z
   .object({
     itemId: itemIdParamSchema.optional(),
-    itemType: itemTypeSchema.optional(),
+    itemType: recordQueryItemTypeSchema.optional(),
     from: isoDateStringSchema.optional(),
     to: isoDateStringSchema.optional(),
   })

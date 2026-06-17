@@ -5,7 +5,7 @@ import { getDb } from '@/lib/db/client';
 
 type ListRecordsOptions = {
   itemId?: string;
-  itemType?: 'metric' | 'symptom';
+  itemType?: 'metric' | 'symptom' | 'both';
   from?: Date;
   to?: Date;
   limit?: number;
@@ -53,7 +53,7 @@ export async function listRecordsByUserId(
     conditions.push(eq(records.itemId, options.itemId));
   }
 
-  if (options.itemType) {
+  if (options.itemType && options.itemType !== 'both') {
     conditions.push(eq(items.type, options.itemType));
   }
 

@@ -16,7 +16,7 @@ import type {
 
 type LocalRecordQuery = {
   itemId?: string;
-  itemType?: 'metric' | 'symptom';
+  itemType?: 'metric' | 'symptom' | 'both';
   from?: string;
   to?: string;
   limit?: number;
@@ -407,7 +407,11 @@ export async function loadLocalRecords(query: LocalRecordQuery = {}) {
         return false;
       }
 
-      if (query.itemType && item.type !== query.itemType) {
+      if (
+        query.itemType &&
+        query.itemType !== 'both' &&
+        item.type !== query.itemType
+      ) {
         return false;
       }
 
