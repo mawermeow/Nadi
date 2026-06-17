@@ -10,6 +10,7 @@ import {
 type SidebarNavProps = {
   activeTab: string;
   onTabChange: (tabId: string) => void;
+  userGreeting?: string;
   syncSummary?: {
     statusLabel: string;
     pendingCount: number;
@@ -23,6 +24,7 @@ type SidebarNavProps = {
 export function SidebarNav({
   activeTab,
   onTabChange,
+  userGreeting,
   syncSummary,
   tabs,
 }: SidebarNavProps) {
@@ -62,19 +64,34 @@ export function SidebarNav({
         })}
       </nav>
 
-      {syncSummary ? (
-        <section className="mt-auto shrink-0 rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-4">
-          <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-            Sync
-          </p>
-          <p className="mt-2 text-sm font-medium">{syncSummary.statusLabel}</p>
-          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-            {formatSyncQueueSummary(syncSummary)}
-          </p>
-          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-            上次同步：{syncSummary.lastSyncAt}
-          </p>
-        </section>
+      {userGreeting || syncSummary ? (
+        <div className="mt-auto grid shrink-0 gap-4">
+          {userGreeting ? (
+            <section className="rounded-[1.5rem] border border-[var(--line)] bg-white/72 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+                Account
+              </p>
+              <p className="mt-2 text-sm font-medium text-[var(--foreground)]">
+                {userGreeting}
+              </p>
+            </section>
+          ) : null}
+
+          {syncSummary ? (
+            <section className="rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+                Sync
+              </p>
+              <p className="mt-2 text-sm font-medium">{syncSummary.statusLabel}</p>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                {formatSyncQueueSummary(syncSummary)}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                上次同步：{syncSummary.lastSyncAt}
+              </p>
+            </section>
+          ) : null}
+        </div>
       ) : null}
     </aside>
   );

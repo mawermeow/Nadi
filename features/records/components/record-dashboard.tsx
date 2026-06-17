@@ -384,8 +384,12 @@ export function RecordDashboard({
         emailVerified: authSession.user.emailVerified,
       }
     : sessionUser;
-  const currentUserLabel =
-    effectiveSessionUser?.email ?? '尚未登入（本機模式）';
+  const sidebarDisplayName = effectiveSessionUser
+    ? effectiveSessionUser.name?.trim() || effectiveSessionUser.email.split('@')[0] || '你'
+    : null;
+  const sidebarUserGreeting = effectiveSessionUser
+    ? `你好，${sidebarDisplayName}`
+    : '你好，目前是本機模式';
   const requiresAuthForCloudFeatures = effectiveSessionUser === null;
 
   const loadLocalData = useCallback(
@@ -1010,9 +1014,6 @@ export function RecordDashboard({
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
                 {getSummaryViewDescription(activeTab)}
               </p>
-            </div>
-            <div className="w-full rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)] sm:w-auto">
-              目前使用者：{currentUserLabel}
             </div>
           </div>
         </section>
@@ -1773,6 +1774,7 @@ export function RecordDashboard({
   return (
     <AppShell
       activeTab={activeTab}
+      sidebarUserGreeting={sidebarUserGreeting}
       onTabChange={navigateToTab}
       sidebarSyncSummary={{
         statusLabel: syncStatusCard.statusLabel,
@@ -1787,7 +1789,6 @@ export function RecordDashboard({
 
       {activeTab === 'dashboard' ? (
         <DashboardView
-          userEmail={currentUserLabel}
           stats={
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">

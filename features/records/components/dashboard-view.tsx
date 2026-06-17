@@ -6,13 +6,11 @@ import { sectionCopy } from '@/lib/ui/section-copy';
 type DashboardViewProps = {
   recentRecords: ReactNode;
   stats: ReactNode;
-  userEmail: string;
 };
 
 export function DashboardView({
   recentRecords,
   stats,
-  userEmail,
 }: DashboardViewProps) {
   return (
     <div className="grid gap-6">
@@ -28,9 +26,6 @@ export function DashboardView({
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
               {sectionCopy.dashboard.hero}
             </p>
-          </div>
-          <div className="w-full rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)] sm:w-auto">
-            目前使用者：{userEmail}
           </div>
         </div>
 

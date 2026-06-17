@@ -19,7 +19,6 @@ import { sectionCopy } from '@/lib/ui/section-copy';
 
 type ItemDashboardProps = {
   initialItems: ItemResponse[];
-  userEmail: string;
 };
 
 type FormState = {
@@ -56,7 +55,6 @@ type ApiFieldErrors = Record<string, string[] | undefined>;
 
 export function ItemDashboard({
   initialItems,
-  userEmail,
 }: ItemDashboardProps) {
   const [items, setItems] = useState(initialItems);
   const [formState, setFormState] = useState(defaultFormState);
@@ -162,9 +160,6 @@ export function ItemDashboard({
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base">
                 先從最常記錄的項目開始。預設只顯示啟用中的項目。
               </p>
-            </div>
-            <div className="rounded-2xl border border-[var(--line)] bg-white/70 px-4 py-3 text-sm text-[var(--muted)]">
-              目前使用者：{userEmail}
             </div>
           </div>
         </section>

@@ -8,6 +8,7 @@ import { SidebarNav } from '@/features/records/components/sidebar-nav';
 type AppShellProps = {
   activeTab: string;
   children: ReactNode;
+  sidebarUserGreeting?: string;
   sidebarSyncSummary?: {
     statusLabel: string;
     pendingCount: number;
@@ -22,6 +23,7 @@ type AppShellProps = {
 export function AppShell({
   activeTab,
   children,
+  sidebarUserGreeting,
   sidebarSyncSummary,
   tabs,
   onTabChange,
@@ -32,6 +34,7 @@ export function AppShell({
         <SidebarNav
           activeTab={activeTab}
           onTabChange={onTabChange}
+          userGreeting={sidebarUserGreeting}
           syncSummary={sidebarSyncSummary}
           tabs={tabs}
         />
