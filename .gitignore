@@ -11,6 +11,7 @@ dist
 
 coverage
 .idea
+.DS_Store
 .pnpm-store
 pnpm-debug.log*
 npm-debug.log*
