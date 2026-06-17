@@ -48,8 +48,9 @@ function formatRecordedAt(recordedAt: string) {
       day: 'numeric',
     }).format(date),
     timeLabel: new Intl.DateTimeFormat('zh-TW', {
-      hour: 'numeric',
+      hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
     }).format(date),
   };
 }

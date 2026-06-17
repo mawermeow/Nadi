@@ -1404,8 +1404,8 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-3">
-        <div className="grid gap-2 lg:col-span-3">
+      <div className="mt-5 grid gap-3">
+        <div className="grid gap-2">
           <span className="text-sm font-medium">查詢類型</span>
           <div className="grid grid-cols-2 gap-2">
             {itemTypeOptions.map((option) => {
@@ -1426,41 +1426,45 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
             })}
           </div>
         </div>
-        <label className="grid gap-2">
-          <span className="text-sm font-medium">項目篩選</span>
-          <Select
-            value={filterState.itemId}
-            onChange={(event) => updateFilterValue('itemId', event.target.value)}
-          >
-            <option value="">
-              {filterState.itemType === 'both'
-                ? '全部項目'
-                : `全部${filterState.itemType === 'metric' ? '指標' : '症狀'}`}
-            </option>
-            {timelineSelectableItems.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.title}
-                {item.archived ? '（已封存）' : ''}
+        <div className="grid gap-3 lg:grid-cols-3">
+          <label className="grid gap-2">
+            <span className="text-sm font-medium">項目篩選</span>
+            <Select
+              value={filterState.itemId}
+              onChange={(event) => updateFilterValue('itemId', event.target.value)}
+            >
+              <option value="">
+                {filterState.itemType === 'both'
+                  ? '全部項目'
+                  : `全部${filterState.itemType === 'metric' ? '指標' : '症狀'}`}
               </option>
-            ))}
-          </Select>
-        </label>
-        <label className="grid gap-2">
-          <span className="text-sm font-medium">開始日期</span>
-          <TextInput
-            type="date"
-            value={filterState.from}
-            onChange={(event) => updateFilterValue('from', event.target.value)}
-          />
-        </label>
-        <label className="grid gap-2">
-          <span className="text-sm font-medium">結束日期</span>
-          <TextInput
-            type="date"
-            value={filterState.to}
-            onChange={(event) => updateFilterValue('to', event.target.value)}
-          />
-        </label>
+              {timelineSelectableItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                  {item.archived ? '（已封存）' : ''}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <div className="grid grid-cols-2 gap-3 lg:col-span-2">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">開始日期</span>
+              <TextInput
+                type="date"
+                value={filterState.from}
+                onChange={(event) => updateFilterValue('from', event.target.value)}
+              />
+            </label>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium">結束日期</span>
+              <TextInput
+                type="date"
+                value={filterState.to}
+                onChange={(event) => updateFilterValue('to', event.target.value)}
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
