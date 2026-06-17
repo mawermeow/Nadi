@@ -4,15 +4,11 @@ import Image from 'next/image';
 
 import type { AppTabItem } from '@/features/records/components/bottom-tab-nav';
 import { AppTabIcon } from '@/components/ui/icons';
-import {
-  formatSyncQueueSummary,
-  sectionCopy,
-} from '@/lib/ui/section-copy';
+import { formatSyncQueueSummary, sectionCopy } from '@/lib/ui/section-copy';
 
 type SidebarNavProps = {
   activeTab: string;
   onTabChange: (tabId: string) => void;
-  userGreeting?: string;
   syncSummary?: {
     statusLabel: string;
     pendingCount: number;
@@ -26,7 +22,6 @@ type SidebarNavProps = {
 export function SidebarNav({
   activeTab,
   onTabChange,
-  userGreeting,
   syncSummary,
   tabs,
 }: SidebarNavProps) {
@@ -49,16 +44,10 @@ export function SidebarNav({
               Nadi
             </p>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Observe yourself
+              {sectionCopy.appShortTagline}
             </p>
           </div>
         </div>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight">
-          {sectionCopy.appHeadline}
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-          {sectionCopy.appTagline}
-        </p>
       </div>
 
       <nav className="mt-8 grid shrink-0 gap-2">
@@ -83,33 +72,20 @@ export function SidebarNav({
         })}
       </nav>
 
-      {userGreeting || syncSummary ? (
+      {syncSummary ? (
         <div className="mt-auto grid shrink-0 gap-4">
-          {userGreeting ? (
-            <section className="rounded-[1.5rem] border border-[var(--line)] bg-white/72 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                Account
-              </p>
-              <p className="mt-2 text-sm font-medium text-[var(--foreground)]">
-                {userGreeting}
-              </p>
-            </section>
-          ) : null}
-
-          {syncSummary ? (
-            <section className="rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                Sync
-              </p>
-              <p className="mt-2 text-sm font-medium">{syncSummary.statusLabel}</p>
-              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-                {formatSyncQueueSummary(syncSummary)}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-                上次同步：{syncSummary.lastSyncAt}
-              </p>
-            </section>
-          ) : null}
+          <section className="rounded-[1.5rem] border border-[var(--line)] bg-[var(--surface)] p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+              Sync
+            </p>
+            <p className="mt-2 text-sm font-medium">{syncSummary.statusLabel}</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+              {formatSyncQueueSummary(syncSummary)}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+              上次同步：{syncSummary.lastSyncAt}
+            </p>
+          </section>
         </div>
       ) : null}
     </aside>

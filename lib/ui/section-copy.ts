@@ -1,9 +1,7 @@
 export const sectionCopy = {
-  appHeadline: '觀察自己',
-  appTagline: '記錄、回顧、理解自己的生活訊號。',
+  appShortTagline: '記錄自己的生活訊號',
 
   dashboard: {
-    hero: '觀察自己的日常訊號',
     recentRecords: '僅顯示最近幾筆紀錄，方便快速回顧。',
   },
 

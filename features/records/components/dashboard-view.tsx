@@ -7,11 +7,13 @@ import { sectionCopy } from '@/lib/ui/section-copy';
 type DashboardViewProps = {
   recentRecords: ReactNode;
   stats: ReactNode;
+  userGreeting?: string;
 };
 
 export function DashboardView({
   recentRecords,
   stats,
+  userGreeting,
 }: DashboardViewProps) {
   return (
     <div className="grid gap-6">
@@ -19,8 +21,8 @@ export function DashboardView({
         <p className="text-xs uppercase tracking-[0.24em] text-[var(--muted)]">
           Dashboard
         </p>
-        <div className="flex">
-          <div className="flex h-24 w-24 items-center justify-center self-start xl:self-auto">
+        <div className="flex lg:hidden">
+          <div className="flex h-24 w-24 items-center justify-center self-start">
             <Image
               src="/logo/nadi-logo.png"
               alt="Nadi logo"
@@ -30,19 +32,24 @@ export function DashboardView({
               priority
             />
           </div>
-          <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="mt-3 flex flex-col gap-4">
             <div>
               <h2 className="max-w-[12ch] text-[2rem] leading-[1.05] font-semibold tracking-tight sm:max-w-none sm:text-[2.5rem]">
                 Nadi
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                {sectionCopy.dashboard.hero}
+                {sectionCopy.appShortTagline}
               </p>
             </div>
           </div>
         </div>
+        {userGreeting ? (
+          <p className="mt-4 text-2xl font-semibold tracking-tight lg:mt-3">
+            {userGreeting}
+          </p>
+        ) : null}
 
-        <div className="mt-5">{stats}</div>
+        <div className="mt-5 lg:mt-4">{stats}</div>
       </section>
 
       <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">

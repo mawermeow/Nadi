@@ -43,6 +43,7 @@ import {
   formatSyncIssueSummary,
   sectionCopy,
 } from '@/lib/ui/section-copy';
+import { buildUserGreeting } from '@/lib/ui/greeting';
 import type { ItemResponse } from '@/features/items/api';
 import type { RecordResponse } from '@/features/records/api';
 import type {
@@ -224,7 +225,7 @@ function getSummaryViewTitle(tabId: (typeof appTabs)[number]['id']) {
 function getSummaryViewDescription(tabId: (typeof appTabs)[number]['id']) {
   switch (tabId) {
     case 'dashboard':
-      return sectionCopy.dashboard.hero;
+      return sectionCopy.appShortTagline;
     case 'create':
       return sectionCopy.create.page;
     case 'records':
@@ -245,25 +246,6 @@ function formatSyncTimestamp(value: string | null) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value));
-}
-
-function formatSyncTelemetrySummary(input: {
-  checkpointAt: string | null;
-  deviceId: string | null;
-  diagnosticMessage: string | null;
-}) {
-  const parts = [
-    input.checkpointAt
-      ? `checkpoint：${formatSyncTimestamp(input.checkpointAt)}`
-      : 'checkpoint：尚未建立',
-    input.deviceId ? `裝置：${input.deviceId.slice(0, 8)}…` : '裝置：未識別',
-  ];
-
-  if (input.diagnosticMessage) {
-    parts.push(input.diagnosticMessage);
-  }
-
-  return parts.join(' · ');
 }
 
 function scrollToTopAfterTabChange() {
@@ -387,9 +369,14 @@ export function RecordDashboard({
   const sidebarDisplayName = effectiveSessionUser
     ? effectiveSessionUser.name?.trim() || effectiveSessionUser.email.split('@')[0] || '你'
     : null;
-  const sidebarUserGreeting = effectiveSessionUser
-    ? `你好，${sidebarDisplayName}`
-    : '你好，目前是本機模式';
+  const userGreeting = useMemo(
+    () =>
+      buildUserGreeting({
+        displayName: sidebarDisplayName,
+        mode: effectiveSessionUser ? 'signed-in' : 'local',
+      }),
+    [effectiveSessionUser, sidebarDisplayName],
+  );
   const requiresAuthForCloudFeatures = effectiveSessionUser === null;
 
   const loadLocalData = useCallback(
@@ -1774,7 +1761,6 @@ export function RecordDashboard({
   return (
     <AppShell
       activeTab={activeTab}
-      sidebarUserGreeting={sidebarUserGreeting}
       onTabChange={navigateToTab}
       sidebarSyncSummary={{
         statusLabel: syncStatusCard.statusLabel,
@@ -1789,6 +1775,7 @@ export function RecordDashboard({
 
       {activeTab === 'dashboard' ? (
         <DashboardView
+          userGreeting={userGreeting}
           stats={
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <article className="rounded-2xl border border-[var(--line)] bg-white/80 p-3 sm:p-4">
@@ -1802,13 +1789,6 @@ export function RecordDashboard({
                 </p>
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   待同步 {syncState.pendingCount} 筆 · 失敗 {syncState.failedCount} 筆
-                </p>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  {formatSyncTelemetrySummary({
-                    checkpointAt: syncState.deviceSession?.lastCheckpointAt ?? null,
-                    deviceId: syncState.deviceSession?.deviceId ?? null,
-                    diagnosticMessage: syncState.diagnostics?.lastMessage ?? null,
-                  })}
                 </p>
               </article>
             </div>
