@@ -78,6 +78,34 @@ export const syncOperationRepository = {
       lastError: input?.lastError ?? current.lastError,
     }));
   },
+  setConflictSnapshot(
+    id: string,
+    input: NonNullable<LocalSyncOperation['conflictSnapshot']>,
+  ) {
+    return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
+      ...current,
+      conflictSnapshot: input,
+      updatedAt: new Date().toISOString(),
+    }));
+  },
+  resolveConflict(
+    id: string,
+    input: NonNullable<LocalSyncOperation['resolutionMeta']>,
+  ) {
+    return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
+      ...current,
+      resolutionMeta: input,
+      conflictSnapshot: current.conflictSnapshot ?? null,
+      updatedAt: new Date().toISOString(),
+    }));
+  },
+  updateBaseVersion(id: string, baseVersion: number) {
+    return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
+      ...current,
+      baseVersion,
+      updatedAt: new Date().toISOString(),
+    }));
+  },
   requeue(id: string) {
     return updateStoreEntity<LocalSyncOperation>('syncOperations', id, (current) => ({
       ...current,
@@ -85,6 +113,7 @@ export const syncOperationRepository = {
       syncStatus: 'pending',
       updatedAt: new Date().toISOString(),
       lastError: null,
+      conflictSnapshot: current.conflictSnapshot ?? null,
     }));
   },
 };

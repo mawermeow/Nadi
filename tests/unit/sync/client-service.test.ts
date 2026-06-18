@@ -78,7 +78,10 @@ vi.mock('@/features/sync/local-operation-repository', () => ({
     markConflict: vi.fn(),
     markFailed: vi.fn(),
     markSynced: vi.fn(),
+    resolveConflict: vi.fn(),
     requeue: vi.fn(),
+    setConflictSnapshot: vi.fn(),
+    updateBaseVersion: vi.fn(),
   },
 }));
 

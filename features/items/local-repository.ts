@@ -66,4 +66,11 @@ export const itemLocalRepository = {
       lastSyncedAt: input?.lastSyncedAt ?? current.lastSyncedAt,
     }));
   },
+  markPending(id: string) {
+    return updateStoreEntity<LocalItem>('items', id, (current) => ({
+      ...current,
+      syncStatus: 'pending',
+      updatedAt: new Date().toISOString(),
+    }));
+  },
 };

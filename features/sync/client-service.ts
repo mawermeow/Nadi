@@ -376,8 +376,68 @@ async function handleConflicts(conflicts: SyncConflict[], serverTime: string) {
       lastError: `version conflict (${conflict.baseVersion} -> ${conflict.currentVersion})`,
       lastSyncedAt: serverTime,
     });
+    await syncOperationRepository.setConflictSnapshot(conflict.operationId, {
+      baseVersion: conflict.baseVersion,
+      currentVersion: conflict.currentVersion,
+      serverEntity: conflict.serverEntity,
+    });
     await markEntityConflict(conflict.entityType, conflict.entityId, serverTime);
   }
+}
+
+export async function resolveConflictKeepLocal(operationId: string) {
+  const operation = await syncOperationRepository.getById(operationId);
+
+  if (!operation || operation.status !== 'conflict' || !operation.conflictSnapshot) {
+    throw new Error('找不到可處理的衝突');
+  }
+
+  await syncOperationRepository.updateBaseVersion(
+    operationId,
+    operation.conflictSnapshot.currentVersion,
+  );
+  await syncOperationRepository.resolveConflict(operationId, {
+    choice: 'keep_local',
+    resolvedAt: new Date().toISOString(),
+  });
+  await syncOperationRepository.requeue(operationId);
+
+  if (operation.entityType === 'item') {
+    await itemLocalRepository.markPending(operation.entityId);
+  } else {
+    await recordLocalRepository.markPending(operation.entityId);
+  }
+
+  await refreshSyncCounts();
+}
+
+export async function resolveConflictKeepCloud(operationId: string) {
+  const operation = await syncOperationRepository.getById(operationId);
+
+  if (!operation || operation.status !== 'conflict' || !operation.conflictSnapshot) {
+    throw new Error('找不到可處理的衝突');
+  }
+
+  const serverEntity = operation.conflictSnapshot.serverEntity;
+  const serverTime = new Date().toISOString();
+
+  if (operation.entityType === 'item') {
+    await upsertRemoteItem(serverEntity as SyncItemEntity, serverTime);
+  } else {
+    await upsertRemoteRecord(serverEntity as SyncRecordEntity, serverTime);
+  }
+
+  await syncOperationRepository.resolveConflict(operationId, {
+    choice: 'keep_cloud',
+    resolvedAt: serverTime,
+    preservedPayload: operation.payload,
+  });
+  await syncOperationRepository.markSynced(operationId, {
+    version: operation.conflictSnapshot.currentVersion,
+    lastSyncedAt: serverTime,
+  });
+
+  await refreshSyncCounts();
 }
 
 function toSyncOperationInput(operation: LocalSyncOperation) {

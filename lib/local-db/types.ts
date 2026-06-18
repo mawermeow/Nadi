@@ -44,6 +44,16 @@ export type LocalSyncOperation = LocalEntityBase & {
   status: SyncStatus;
   retryCount: number;
   lastError: string | null;
+  conflictSnapshot?: {
+    baseVersion: number;
+    currentVersion: number;
+    serverEntity: Record<string, unknown>;
+  } | null;
+  resolutionMeta?: {
+    choice: 'keep_local' | 'keep_cloud';
+    resolvedAt: string;
+    preservedPayload?: unknown;
+  } | null;
 };
 
 export type LocalSyncMetaValue =

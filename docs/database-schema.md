@@ -26,6 +26,10 @@
 - `sync_device_sessions`
 - `sync_operation_receipts`
 
+目前新增 Phase 11 data export & personal ownership 所需結構：
+
+- `export_histories`
+
 ## Tables
 
 ### users
@@ -205,6 +209,22 @@ Record constraints:
 | `result_json` | `jsonb` | Stored snapshot payload. |
 | `created_at` | `timestamptz` | Creation timestamp. |
 
+### export_histories
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `user_id` | `uuid` | Owner, references `users.id`, cascade delete. |
+| `export_format` | `export_format` | `csv` / `json` / `full_backup`. |
+| `file_name` | `text` | 實際下載檔名，包含 export type 與 timestamp。 |
+| `schema_version` | `integer` | Export payload schema version。 |
+| `item_count` | `integer` | Export 內 item 數量。 |
+| `record_count` | `integer` | Export 內 record 數量。 |
+| `report_snapshot_count` | `integer` | Export 內 report snapshot 數量。 |
+| `device_count` | `integer` | Export 內 device metadata 數量。 |
+| `masked_user_reference` | `text` | 遮罩後的使用者識別字串，不保存完整私人資料。 |
+| `created_at` | `timestamptz` | Export history 建立時間。 |
+
 ## Indexes
 
 - `users_email_idx`
@@ -243,6 +263,8 @@ Record constraints:
 - `sync_operation_receipts_user_entity_idx`
 - `sync_operation_receipts_user_outcome_idx`
 - `report_snapshots_user_range_idx`
+- `export_histories_user_created_at_idx`
+- `export_histories_user_format_idx`
 
 ## Current Semantics
 
@@ -253,6 +275,7 @@ Record constraints:
 - `device_account_links` 用來記錄哪台裝置已被哪個帳號接管同步身份
 - `sync_device_sessions` 用來保存每台裝置最近的 sync session、checkpoint 與 recovery 訊號
 - `sync_operation_receipts` 用來保存 sync operation receipt，提供 server-side idempotency 與 conflict traceability
+- `export_histories` 用來保存使用者曾做過的資料匯出紀錄，不保存完整匯出內容本體
 - `archived` 與 `deleted_at` 不同
 - `archived` 是產品層停用狀態
 - `deleted_at` 是同步層 soft delete 狀態

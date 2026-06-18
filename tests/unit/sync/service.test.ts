@@ -247,8 +247,8 @@ describe('sync service', () => {
   });
 
   it('returns explicit rejection when item belongs to another user', async () => {
-    vi.mocked(findSyncRecordById).mockResolvedValue(null);
-    vi.mocked(findItemByIdForUser).mockResolvedValue(null);
+    vi.mocked(findSyncRecordById).mockResolvedValue(null as never);
+    vi.mocked(findItemByIdForUser).mockResolvedValue(null as never);
     vi.mocked(findItemById).mockResolvedValue({
       ...baseItem,
       userId: 'other-user',

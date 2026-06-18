@@ -39,6 +39,12 @@ export type SyncOperationIssue = {
   lastError: string | null;
   displayError: string;
   debugDetails: string[];
+  resolutionChoices: Array<'keep_local' | 'keep_cloud' | 'skip'>;
+  comparisonRows: Array<{
+    label: string;
+    localValue: string;
+    cloudValue: string;
+  }>;
 };
 
 export function getSyncStatusPresentation(
@@ -185,6 +191,86 @@ function buildSyncIssueDebugDetails(
   return details;
 }
 
+function stringifyValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? '是' : '否';
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
+}
+
+function buildConflictComparisonRows(
+  operation: LocalSyncOperation,
+  itemsById: Map<string, LocalItem>,
+) {
+  if (operation.status !== 'conflict' || !operation.conflictSnapshot) {
+    return [];
+  }
+
+  const payload =
+    operation.payload && typeof operation.payload === 'object'
+      ? (operation.payload as Record<string, unknown>)
+      : {};
+  const serverEntity = operation.conflictSnapshot.serverEntity as Record<string, unknown>;
+
+  if (operation.entityType === 'item') {
+    const localItem = itemsById.get(operation.entityId);
+
+    return [
+      {
+        label: '名稱',
+        localValue: stringifyValue(payload.title ?? localItem?.title),
+        cloudValue: stringifyValue(serverEntity.title),
+      },
+      {
+        label: '封存狀態',
+        localValue: stringifyValue(payload.archived ?? localItem?.archived),
+        cloudValue: stringifyValue(serverEntity.archived),
+      },
+      {
+        label: '排序',
+        localValue: stringifyValue(payload.sortOrder ?? localItem?.sortOrder),
+        cloudValue: stringifyValue(serverEntity.sortOrder),
+      },
+    ];
+  }
+
+  const localItem = itemsById.get(String(payload.itemId ?? ''));
+
+  return [
+    {
+      label: '項目',
+      localValue: stringifyValue(localItem?.title ?? payload.itemId),
+      cloudValue: stringifyValue(serverEntity.itemId),
+    },
+    {
+      label: '值',
+      localValue: stringifyValue(payload.value),
+      cloudValue: stringifyValue(
+        serverEntity.valueNumber ?? serverEntity.valueText ?? serverEntity.valueBoolean,
+      ),
+    },
+    {
+      label: '紀錄時間',
+      localValue: stringifyValue(payload.recordedAt),
+      cloudValue: stringifyValue(serverEntity.recordedAt),
+    },
+    {
+      label: '備註',
+      localValue: stringifyValue(payload.note),
+      cloudValue: stringifyValue(serverEntity.note),
+    },
+  ];
+}
+
 function mapSyncOperationIssue(
   operation: LocalSyncOperation,
   itemsById: Map<string, LocalItem>,
@@ -210,6 +296,11 @@ function mapSyncOperationIssue(
       itemsById,
       linkedAccountUserId,
     ),
+    resolutionChoices:
+      operation.status === 'conflict'
+        ? ['keep_local', 'keep_cloud', 'skip']
+        : ['skip'],
+    comparisonRows: buildConflictComparisonRows(operation, itemsById),
   };
 }
 

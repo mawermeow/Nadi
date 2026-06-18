@@ -62,4 +62,11 @@ export const recordLocalRepository = {
       lastSyncedAt: input?.lastSyncedAt ?? current.lastSyncedAt,
     }));
   },
+  markPending(id: string) {
+    return updateStoreEntity<LocalRecord>('records', id, (current) => ({
+      ...current,
+      syncStatus: 'pending',
+      updatedAt: new Date().toISOString(),
+    }));
+  },
 };

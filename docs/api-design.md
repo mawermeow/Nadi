@@ -18,7 +18,7 @@
 
 - UI 全面 local-first
 - reliable iOS background sync
-- 完整 conflict resolution UI
+- 更進一步的裝置管理控制
 
 ## Base Rules
 
@@ -41,6 +41,11 @@
 - `POST /v1/sync/push`
 - `POST /v1/sync/pull`
 - `POST /v1/account/device-link`
+- `POST /v1/exports`
+- `GET /v1/exports/history`
+- `POST /v1/imports/validate`
+- `POST /v1/backups/recover`
+- `GET /v1/ownership/summary`
 - `GET /v1/reports/summary`
 - `GET /v1/reports/correlation`
 - `/api/auth/*` Better Auth handler:
@@ -50,6 +55,107 @@
   - `GET /api/auth/get-session`
 
 AI insights remain outside the current MVP scope.
+
+## Phase 11 Ownership & Export API
+
+### `POST /v1/exports`
+
+建立目前登入使用者自己的資料匯出檔，並同步寫入 export history。
+
+Request body:
+
+```json
+{
+  "format": "csv"
+}
+```
+
+Allowed formats:
+
+- `csv`
+- `json`
+- `full_backup`
+
+Rules:
+
+- 只能匯出 authenticated session user 自己的資料
+- `csv` 以人工閱讀與 spreadsheet 使用為主
+- `json` 保留完整資料結構，供未來 migration / restore 使用
+- `full_backup` 額外包含 schema version、exportedAt、masked user reference 與 device metadata
+- response 以 attachment 形式回傳，不在 JSON body 內回傳完整內容
+
+### `GET /v1/exports/history`
+
+回傳目前登入使用者的 export history。
+
+Response shape:
+
+- `history[]`
+  - `id`
+  - `exportFormat`
+  - `fileName`
+  - `schemaVersion`
+  - `itemCount`
+  - `recordCount`
+  - `reportSnapshotCount`
+  - `deviceCount`
+  - `maskedUserReference`
+  - `createdAt`
+
+### `POST /v1/imports/validate`
+
+在真正恢復前先檢查 import / backup payload。
+
+Request body:
+
+```json
+{
+  "payload": {
+    "schemaVersion": 1,
+    "exportFormat": "full_backup"
+  }
+}
+```
+
+Validation rules:
+
+- 檢查 schema version
+- 檢查必要欄位與資料型別
+- 檢查 item / record 關聯完整性
+- 檢查 duplicate item / record / report snapshot id
+- 不直接覆蓋既有資料
+
+### `POST /v1/backups/recover`
+
+只在 validation 通過後才允許套用恢復，並要求明確確認字串。
+
+Request body:
+
+```json
+{
+  "payload": {
+    "schemaVersion": 1,
+    "exportFormat": "full_backup"
+  },
+  "confirmText": "RESTORE"
+}
+```
+
+Rules:
+
+- recovery flow 採 `preview -> confirm -> apply`
+- 若偵測 duplicate 或 schema mismatch，回傳 `409`，不覆蓋既有資料
+- 實際寫入以 transaction 執行，匯入失敗時保留原資料不變
+
+### `GET /v1/ownership/summary`
+
+回傳目前登入使用者的雲端 ownership summary。
+
+內容包含：
+
+- cloud item / record / report snapshot counts
+- export history count 與 last export time
+- devices list（來自 `device_account_links` 與 `sync_device_sessions` 的最小可行整合）
 
 ## Transitional Behavior
 

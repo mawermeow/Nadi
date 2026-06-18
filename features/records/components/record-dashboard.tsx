@@ -15,6 +15,7 @@ import { RecordsListView } from '@/features/records/components/records-list-view
 import { ReportsView } from '@/features/records/components/reports-view';
 import { SettingsView } from '@/features/records/components/settings-view';
 import { AccountPanel } from '@/features/auth/components/account-panel';
+import { OwnershipPanel } from '@/features/ownership/components/ownership-panel';
 import { authClient } from '@/lib/auth/auth-client';
 import { ActionButton } from '@/components/ui/action-button';
 import {
@@ -67,6 +68,8 @@ import {
 import { getActiveLocalDataUserId } from '@/features/sync/local-user-scope';
 import {
   hydrateSyncTelemetryState,
+  resolveConflictKeepCloud,
+  resolveConflictKeepLocal,
   retryFailedOperations,
   retrySyncOperation,
   startForegroundSync,
@@ -529,6 +532,51 @@ export function RecordDashboard({
         ]);
       } catch {
         // keep the issue visible if local cleanup fails.
+      } finally {
+        setActiveSyncIssueId((current) =>
+          current === issue.operationId ? null : current,
+        );
+      }
+    });
+  }
+
+  function handleKeepLocalConflict(issue: SyncOperationIssue) {
+    setActiveSyncIssueId(issue.operationId);
+    startRetrySyncTransition(async () => {
+      try {
+        await resolveConflictKeepLocal(issue.operationId);
+        await runSync();
+        await Promise.all([
+          loadLocalData({
+            preserveCurrentFilter: true,
+          }),
+          loadSyncIssues(),
+          loadItemRecordHistoryCounts(),
+        ]);
+      } catch {
+        // sync state already captures conflict resolution failures.
+      } finally {
+        setActiveSyncIssueId((current) =>
+          current === issue.operationId ? null : current,
+        );
+      }
+    });
+  }
+
+  function handleKeepCloudConflict(issue: SyncOperationIssue) {
+    setActiveSyncIssueId(issue.operationId);
+    startRetrySyncTransition(async () => {
+      try {
+        await resolveConflictKeepCloud(issue.operationId);
+        await Promise.all([
+          loadLocalData({
+            preserveCurrentFilter: true,
+          }),
+          loadSyncIssues(),
+          loadItemRecordHistoryCounts(),
+        ]);
+      } catch {
+        // sync state already captures conflict resolution failures.
       } finally {
         setActiveSyncIssueId((current) =>
           current === issue.operationId ? null : current,
@@ -1717,6 +1765,7 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
       {activeTab === 'settings' ? (
         <SettingsView
           accountManagement={<AccountPanel initialSessionUser={sessionUser} />}
+          ownershipManagement={<OwnershipPanel enabled={Boolean(sessionUser)} />}
           itemManagement={settingsPanel}
           syncStatus={
             <section className="rounded-[1.75rem] border border-[var(--line)] bg-white/88 p-4 backdrop-blur sm:p-5 lg:p-6">
@@ -1811,6 +1860,25 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
                       <p className="mt-1 text-xs text-[var(--muted)]">
                         最近更新：{formatSyncTimestamp(issue.updatedAt)}
                       </p>
+                      {issue.comparisonRows.length > 0 ? (
+                        <div className="mt-3 overflow-hidden rounded-2xl border border-[var(--line)]">
+                          <div className="grid grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] bg-stone-50 px-3 py-2 text-xs text-[var(--muted)]">
+                            <p>欄位</p>
+                            <p>本機</p>
+                            <p>雲端</p>
+                          </div>
+                          {issue.comparisonRows.map((row) => (
+                            <div
+                              key={`${issue.operationId}:${row.label}`}
+                              className="grid grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)] gap-2 border-t border-[var(--line)] px-3 py-2 text-sm"
+                            >
+                              <p className="text-[var(--muted)]">{row.label}</p>
+                              <p className="break-words">{row.localValue}</p>
+                              <p className="break-words text-[var(--muted)]">{row.cloudValue}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                       {issue.debugDetails.length > 0 ? (
                         <div className="mt-3 rounded-2xl bg-stone-50 px-3 py-3 text-xs text-[var(--muted)]">
                           {issue.debugDetails.map((detail) => (
@@ -1844,6 +1912,36 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
                                 : '清除此錯誤'
                             }
                             onClick={() => handleDismissSyncIssue(issue)}
+                            disabled={isRetryingSync}
+                          />
+                        </div>
+                      ) : issue.status === 'conflict' ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <ActionButton
+                            type="button"
+                            icon={<RefreshIcon size={18} />}
+                            label={
+                              activeSyncIssueId === issue.operationId
+                                ? '處理中…'
+                                : '保留本機版本'
+                            }
+                            onClick={() => handleKeepLocalConflict(issue)}
+                            disabled={isRetryingSync}
+                          />
+                          <ActionButton
+                            type="button"
+                            variant="secondary"
+                            icon={<SaveIcon size={18} />}
+                            label="保留雲端版本"
+                            onClick={() => handleKeepCloudConflict(issue)}
+                            disabled={isRetryingSync}
+                          />
+                          <ActionButton
+                            type="button"
+                            variant="secondary"
+                            icon={<XIcon size={18} />}
+                            label="先保留待處理"
+                            onClick={() => setActiveSyncIssueId(null)}
                             disabled={isRetryingSync}
                           />
                         </div>

@@ -48,6 +48,11 @@ export const syncOperationOutcomeEnum = pgEnum('sync_operation_outcome', [
   'rejected',
   'conflict',
 ]);
+export const exportFormatEnum = pgEnum('export_format', [
+  'csv',
+  'json',
+  'full_backup',
+]);
 export const reportTypeEnum = pgEnum('report_type', [
   'summary',
   'correlation',
@@ -340,6 +345,34 @@ export const reportSnapshots = pgTable(
   ],
 );
 
+export const exportHistories = pgTable(
+  'export_histories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    exportFormat: exportFormatEnum('export_format').notNull(),
+    fileName: text('file_name').notNull(),
+    schemaVersion: integer('schema_version').notNull(),
+    itemCount: integer('item_count').notNull().default(0),
+    recordCount: integer('record_count').notNull().default(0),
+    reportSnapshotCount: integer('report_snapshot_count').notNull().default(0),
+    deviceCount: integer('device_count').notNull().default(0),
+    maskedUserReference: text('masked_user_reference').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index('export_histories_user_created_at_idx').on(
+      table.userId,
+      table.createdAt,
+    ),
+    index('export_histories_user_format_idx').on(table.userId, table.exportFormat),
+  ],
+);
+
 export const syncOperationReceipts = pgTable(
   'sync_operation_receipts',
   {
@@ -399,4 +432,5 @@ export type SyncDeviceSession = typeof syncDeviceSessions.$inferSelect;
 export type Item = typeof items.$inferSelect;
 export type Record = typeof records.$inferSelect;
 export type ReportSnapshot = typeof reportSnapshots.$inferSelect;
+export type ExportHistory = typeof exportHistories.$inferSelect;
 export type SyncOperationReceipt = typeof syncOperationReceipts.$inferSelect;
