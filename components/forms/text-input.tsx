@@ -2,7 +2,7 @@ import type { ComponentPropsWithoutRef } from 'react';
 
 import {
   getFieldClassName,
-  temporalInputClassName,
+  getTemporalFieldClassName,
   temporalInputTypes,
   type FieldVariant,
 } from '@/components/forms/field-styles';
@@ -17,15 +17,15 @@ export function TextInput({
   type,
   ...props
 }: TextInputProps) {
-  const temporalClassName =
-    type && temporalInputTypes.has(type) ? temporalInputClassName : undefined;
+  const isTemporalInput = type ? temporalInputTypes.has(type) : false;
 
   return (
     <input
-      className={getFieldClassName(
-        variant,
-        [temporalClassName, className].filter(Boolean).join(' '),
-      )}
+      className={
+        isTemporalInput
+          ? getTemporalFieldClassName(variant, className)
+          : getFieldClassName(variant, className)
+      }
       type={type}
       {...props}
     />

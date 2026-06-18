@@ -39,17 +39,59 @@ textarea::placeholder {
   color: rgba(94, 106, 103, 0.88);
 }
 
-.nadi-temporal-input {
+input:not(.nadi-temporal-input),
+textarea,
+select {
   display: block;
-  min-width: 0;
+}
+
+.nadi-temporal-input {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
   max-width: 100%;
   -webkit-min-logical-width: 0;
+}
+
+@supports (field-sizing: content) {
+  .nadi-temporal-input {
+    field-sizing: content;
+  }
+}
+
+.nadi-temporal-input::-webkit-datetime-edit,
+.nadi-temporal-input::-webkit-datetime-edit-fields-wrapper,
+.nadi-temporal-input::-webkit-datetime-edit-text,
+.nadi-temporal-input::-webkit-datetime-edit-month-field,
+.nadi-temporal-input::-webkit-datetime-edit-day-field,
+.nadi-temporal-input::-webkit-datetime-edit-year-field,
+.nadi-temporal-input::-webkit-datetime-edit-hour-field,
+.nadi-temporal-input::-webkit-datetime-edit-minute-field,
+.nadi-temporal-input::-webkit-datetime-edit-second-field,
+.nadi-temporal-input::-webkit-datetime-edit-meridiem-field {
+  padding: 0;
+}
+
+.nadi-temporal-input::-webkit-datetime-edit {
+  flex: 0 1 auto;
+  min-width: 0;
+  line-height: 1.25;
 }
 
 .nadi-temporal-input::-webkit-date-and-time-value,
 .nadi-temporal-input::-webkit-time-value {
   min-width: 0;
   text-align: left;
+}
+
+.nadi-temporal-input::-webkit-calendar-picker-indicator {
+  flex: 0 0 auto;
+  margin: 0 0 0 0.25rem;
+  padding: 0;
+}
+
+.nadi-temporal-input::-webkit-inner-spin-button {
+  height: auto;
 }
 
 .nadi-select {
