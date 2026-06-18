@@ -7,6 +7,7 @@
 - API Design
 - High-Level Design
 - Deep Dive
+- Trade-offs
 
 ## 本機預覽
 

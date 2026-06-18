@@ -194,7 +194,7 @@
           <h1>Nadi</h1>
           <p class="tagline">個人 life-signal tracking system</p>
           <p class="tagline" style="margin-top: 1.5em">
-            設計決策簡報 · Functional / NFR / API / Architecture / Deep Dive
+            設計決策簡報 · Functional / NFR / API / Architecture / Deep Dive / Trade-offs
           </p>
         </section>
 
@@ -203,8 +203,8 @@
           <h2>這份簡報在說什麼？</h2>
           <ul>
             <li>核心流程：自訂項目 → 記錄日常訊號 → 回看 summary / correlation</li>
-            <li>目前已完成紀錄與 symptom–metric 關聯探索</li>
-            <li>技術主軸：Next.js + PostgreSQL + Drizzle，並逐步補上 local-first sync</li>
+            <li>目前已完成紀錄、關聯探索、local-first sync、資料匯出與衝突解決</li>
+            <li>技術主軸：Next.js + PostgreSQL + Drizzle，IndexedDB 作為本機資料層</li>
           </ul>
           <p class="muted small" style="margin-top: 1.2em">
             內容整理自 docs/system-design.md、architecture.md、api-design.md
@@ -249,6 +249,8 @@
             <li>Summary / Correlation report API 與 UI</li>
             <li>Local-first 寫入：IndexedDB + foreground sync</li>
             <li>Account linking：未登入可本機使用，登入後可雲端備份</li>
+            <li>Sync conflict resolution：保留本機 / 保留雲端</li>
+            <li>資料匯出（CSV / JSON / full backup）、匯入驗證與恢復</li>
           </ul>
           <h3>刻意不在 MVP</h3>
           <ul>
@@ -271,7 +273,7 @@
               <ul>
                 <li>生活紀錄具長期價值，避免資料遺失</li>
                 <li>PostgreSQL 作為雲端主資料庫</li>
-                <li>未來支援 CSV / JSON 匯出，降低平台鎖定</li>
+                <li>支援 CSV / JSON / full backup 匯出，降低平台鎖定</li>
               </ul>
             </div>
             <div class="card">
@@ -314,7 +316,7 @@
             <li>PWA 常在手機上使用，網路可能不穩</li>
             <li>IndexedDB 暫存本機資料與 pending sync operations</li>
             <li>Foreground sync 在前景互動或 <code>online</code> 事件時執行</li>
-            <li>以 <code>version</code> 做 optimistic concurrency，衝突需後續處理</li>
+            <li>以 <code>version</code> 做 optimistic concurrency，衝突由使用者手動解決</li>
           </ul>
         </section>
 
@@ -339,7 +341,12 @@ GET                    /v1/reports/summary
 GET                    /v1/reports/correlation
 POST                   /v1/sync/push
 POST                   /v1/sync/pull
-POST                   /v1/account/device-link</code></pre>
+POST                   /v1/account/device-link
+POST                   /v1/exports
+GET                    /v1/exports/history
+POST                   /v1/imports/validate
+POST                   /v1/backups/recover
+GET                    /v1/ownership/summary</code></pre>
         </section>
 
         <section>
@@ -410,6 +417,30 @@ POST /v1/sync/pull
           </p>
         </section>
 
+        <section>
+          <h2>API Design</h2>
+          <h3>Ownership & Export</h3>
+          <div class="two-col">
+            <div class="card">
+              <h3>Export</h3>
+              <p class="small muted"><code>POST /v1/exports</code></p>
+              <ul>
+                <li>格式：<code>csv</code> / <code>json</code> / <code>full_backup</code></li>
+                <li>以 attachment 下載，並寫入 export history metadata</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Recover</h3>
+              <p class="small muted"><code>POST /v1/imports/validate</code></p>
+              <p class="small muted"><code>POST /v1/backups/recover</code></p>
+              <ul>
+                <li>先 preview / validate，再要求明確確認</li>
+                <li>schema mismatch 或 duplicate 時回傳 409，不覆蓋既有資料</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <section class="section-slide center-slide">
           <span class="eyebrow">Section 4</span>
           <h2>High-Level Design</h2>
@@ -458,6 +489,7 @@ Neon PostgreSQL (Drizzle ORM)</code></pre>
 items        (user-defined tracking definitions)
 records      (time-series observations)
 report_snapshots (optional, for heavy reports)
+export_histories (export metadata, not full payload)
 sync_device_sessions (per-device checkpoint state)</code></pre>
           <ul>
             <li>所有 user-owned tables 以 <code>user_id</code> 隔離</li>
@@ -540,6 +572,20 @@ records → 儲存觀察</code></pre>
 
         <section>
           <h2>Deep Dive</h2>
+          <h3>Sync Conflict Resolution</h3>
+          <ul>
+            <li>衝突發生時保存 <code>conflictSnapshot</code>（本機 payload vs 雲端 entity）</li>
+            <li>UI 顯示欄位比對，讓使用者選擇保留本機或雲端</li>
+            <li>保留本機：更新 <code>baseVersion</code> 後重新 push</li>
+            <li>保留雲端：以 server entity 覆寫本機，並標記 operation 為 synced</li>
+          </ul>
+          <p class="muted small">
+            不自動合併，避免默默覆蓋個人生活紀錄
+          </p>
+        </section>
+
+        <section>
+          <h2>Deep Dive</h2>
           <h3>Account & Device Linking</h3>
           <ul>
             <li>未登入：anonymous local-first，只寫本機</li>
@@ -574,6 +620,84 @@ records → 儲存觀察</code></pre>
           </p>
         </section>
 
+        <section class="section-slide center-slide">
+          <span class="eyebrow">Section 6</span>
+          <h2>Trade-offs</h2>
+          <p>刻意不做什麼，以及為什麼</p>
+        </section>
+
+        <section>
+          <h2>Trade-offs</h2>
+          <div class="two-col">
+            <div class="card">
+              <h3>Why not Microservices?</h3>
+              <p class="small">
+                目前規模不足以承擔額外的維運複雜度。
+              </p>
+              <p class="small muted">
+                Next.js + PostgreSQL 的 modular monolith 已足夠支撐 MVP。
+              </p>
+            </div>
+            <div class="card">
+              <h3>Why not iOS background sync (yet)?</h3>
+              <p class="small">
+                PWA 在 iOS 上的背景執行能力有限且不穩定。
+              </p>
+              <p class="small muted">
+                先以 foreground sync 保護本機寫入，可靠性優先於即時性。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Trade-offs</h2>
+          <div class="two-col">
+            <div class="card">
+              <h3>Why not auto-merge conflicts?</h3>
+              <p class="small">
+                自動合併可能默默覆蓋對使用者有意義的個人紀錄。
+              </p>
+              <p class="small muted">
+                衝突在 UI 中呈現，由使用者明確選擇保留本機或雲端版本。
+              </p>
+            </div>
+            <div class="card">
+              <h3>Why not store full exports in DB?</h3>
+              <p class="small">
+                <code>export_histories</code> 只保存 metadata；實際檔案以下載提供。
+              </p>
+              <p class="small muted">
+                降低儲存成本與敏感資料長期重複保存，也讓匯出更容易帶離平台。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Trade-offs</h2>
+          <div class="two-col">
+            <div class="card">
+              <h3>Why archive instead of hard delete?</h3>
+              <p class="small">
+                Archived items 與 soft-deleted records 保留報表與 sync tombstone 所需的歷史語意。
+              </p>
+              <p class="small muted">
+                Hard delete 會讓過往觀察更難解讀，也提高多裝置同步風險。
+              </p>
+            </div>
+            <div class="card">
+              <h3>Why not CRDT / real-time collab?</h3>
+              <p class="small">
+                Nadi 是個人觀察工具，不是多人即時協作編輯器。
+              </p>
+              <p class="small muted">
+                Version-based optimistic concurrency 已足夠處理多裝置個人使用情境。
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section class="center-slide">
           <span class="eyebrow">Closing</span>
           <h2>Final Recommendation</h2>
@@ -582,7 +706,8 @@ records → 儲存觀察</code></pre>
 第一版重點：
 1. 快速建立自訂項目
 2. 低摩擦紀錄 daily signals
-3. 探索 symptom 與其他紀錄之間的可能關聯</code></pre>
+3. 探索 symptom 與其他紀錄之間的可能關聯
+4. 讓使用者能匯出、驗證並安全恢復自己的資料</code></pre>
           <p class="tagline" style="margin-top: 1.5em">
             詳細文件：
             <a href="https://github.com/mawermeow/Nadi/blob/main/docs/system-design.md" target="_blank" rel="noreferrer">system-design.md</a> ·
