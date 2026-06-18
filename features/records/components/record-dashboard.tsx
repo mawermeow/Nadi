@@ -1235,7 +1235,7 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
             </label>
           ) : null}
 
-          <label className="grid gap-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-medium">紀錄時間</span>
             <TextInput
               type="datetime-local"
@@ -1494,8 +1494,8 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
               ))}
             </Select>
           </label>
-          <div className="grid grid-cols-2 gap-3 lg:col-span-2">
-            <label className="grid gap-2">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 lg:col-span-2">
+            <label className="grid min-w-0 gap-2">
               <span className="text-sm font-medium">開始日期</span>
               <TextInput
                 type="date"
@@ -1503,7 +1503,7 @@ function updateTimelineItemTypeTab(nextType: 'metric' | 'symptom' | 'both') {
                 onChange={(event) => updateFilterValue('from', event.target.value)}
               />
             </label>
-            <label className="grid gap-2">
+            <label className="grid min-w-0 gap-2">
               <span className="text-sm font-medium">結束日期</span>
               <TextInput
                 type="date"

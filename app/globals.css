@@ -39,6 +39,19 @@ textarea::placeholder {
   color: rgba(94, 106, 103, 0.88);
 }
 
+.nadi-temporal-input {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  -webkit-min-logical-width: 0;
+}
+
+.nadi-temporal-input::-webkit-date-and-time-value,
+.nadi-temporal-input::-webkit-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
 .nadi-select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%235e6a67' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='m6 9 6 6 6-6'/%3E%3C/svg%3E");

@@ -122,8 +122,8 @@ export function SummaryReportSection({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
-        <label className="grid gap-2">
+      <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <label className="grid min-w-0 gap-2">
           <span className="text-sm font-medium">開始日期</span>
           <TextInput
             type="date"
@@ -131,7 +131,7 @@ export function SummaryReportSection({
             onChange={(event) => updateFilter('from', event.target.value)}
           />
         </label>
-        <label className="grid gap-2">
+        <label className="grid min-w-0 gap-2">
           <span className="text-sm font-medium">結束日期</span>
           <TextInput
             type="date"

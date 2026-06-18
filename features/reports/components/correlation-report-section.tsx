@@ -174,8 +174,8 @@ export function CorrelationReportSection({
         </div>
       ) : (
         <>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <label className="grid gap-2 sm:col-span-2">
+          <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <label className="grid min-w-0 gap-2 sm:col-span-2">
               <span className="text-sm font-medium">分析目標症狀</span>
               <Select
                 variant="symptom"
@@ -192,7 +192,7 @@ export function CorrelationReportSection({
                 ))}
               </Select>
             </label>
-            <label className="grid gap-2">
+            <label className="grid min-w-0 gap-2">
               <span className="text-sm font-medium">開始日期</span>
               <TextInput
                 variant="symptom"
@@ -201,7 +201,7 @@ export function CorrelationReportSection({
                 onChange={(event) => updateFilter('from', event.target.value)}
               />
             </label>
-            <label className="grid gap-2">
+            <label className="grid min-w-0 gap-2">
               <span className="text-sm font-medium">結束日期</span>
               <TextInput
                 variant="symptom"
